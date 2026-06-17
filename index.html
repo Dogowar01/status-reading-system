@@ -377,6 +377,73 @@
     background:linear-gradient(180deg,var(--silver-1),var(--silver-2));-webkit-background-clip:text;background-clip:text;color:transparent;
     filter:drop-shadow(0 0 18px rgba(87,195,255,0.6));}
   .splash-sub{font-size:11px;letter-spacing:0.36em;color:var(--accent);text-transform:uppercase;margin-top:8px;text-shadow:0 0 10px rgba(87,195,255,0.6);}
+
+  /* ============ RANK THEMING + PAYOFF VISUALS ============ */
+  :root{ --rank:#57c3ff; --rank-glow:87,195,255; }
+
+  /* faint scanline texture over the whole app for a "System interface" feel */
+  body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+    background-image:repeating-linear-gradient(0deg, rgba(150,200,255,0.018) 0 1px, transparent 1px 3px);}
+
+  /* the top of the sheet now follows your RANK colour, so it evolves as you climb */
+  .lvl-num{text-shadow:0 0 16px rgba(var(--rank-glow),0.55);}
+  .xpbar .fill{background:linear-gradient(90deg, rgba(var(--rank-glow),0.55), var(--rank));
+    box-shadow:0 0 14px rgba(var(--rank-glow),0.85), inset 0 1px 0 rgba(255,255,255,0.45);}
+  .lvl-pill{color:var(--rank);border-color:rgba(var(--rank-glow),0.6);background:rgba(var(--rank-glow),0.12);
+    box-shadow:inset 0 0 12px rgba(var(--rank-glow),0.22), 0 0 16px rgba(var(--rank-glow),0.3);text-shadow:0 0 8px rgba(var(--rank-glow),0.7);}
+
+  /* hero becomes a rank-themed "System window" with corner brackets */
+  .sheet-hero{border-color:rgba(var(--rank-glow),0.32);
+    box-shadow:inset 0 1px 0 rgba(185,220,255,0.14), inset 0 -22px 46px rgba(0,0,0,0.34), 0 16px 36px rgba(0,0,0,0.5), 0 0 34px rgba(var(--rank-glow),0.16), 0 0 0 1px rgba(var(--rank-glow),0.07);}
+  .sheet-hero::before{background:radial-gradient(circle, rgba(var(--rank-glow),0.26), transparent 66%);}
+  .sheet-hero::after{content:"";position:absolute;inset:9px;pointer-events:none;border-radius:11px;opacity:.85;
+    filter:drop-shadow(0 0 4px rgba(var(--rank-glow),0.8));
+    background:
+      linear-gradient(var(--rank),var(--rank)) left top/20px 2px no-repeat,
+      linear-gradient(var(--rank),var(--rank)) left top/2px 20px no-repeat,
+      linear-gradient(var(--rank),var(--rank)) right top/20px 2px no-repeat,
+      linear-gradient(var(--rank),var(--rank)) right top/2px 20px no-repeat,
+      linear-gradient(var(--rank),var(--rank)) left bottom/20px 2px no-repeat,
+      linear-gradient(var(--rank),var(--rank)) left bottom/2px 20px no-repeat,
+      linear-gradient(var(--rank),var(--rank)) right bottom/20px 2px no-repeat,
+      linear-gradient(var(--rank),var(--rank)) right bottom/2px 20px no-repeat;}
+
+  /* rank insignia on the sheet */
+  .hero-rank{display:flex;align-items:center;justify-content:center;gap:13px;margin-bottom:16px;}
+  .rank-badge{width:54px;height:54px;display:grid;place-items:center;font-family:var(--disp);font-weight:700;font-size:27px;
+    color:#fff;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    background:linear-gradient(180deg, rgba(var(--rank-glow),0.4), rgba(var(--rank-glow),0.08));
+    box-shadow:0 0 20px rgba(var(--rank-glow),0.55);text-shadow:0 0 12px rgba(var(--rank-glow),0.9);}
+  .rank-meta{text-align:left;}
+  .rank-meta-name{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:0.04em;color:var(--rank);text-shadow:0 0 10px rgba(var(--rank-glow),0.55);line-height:1;}
+  .rank-meta-sub{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px;}
+
+  /* level-up juice */
+  #levelFx{position:fixed;inset:0;z-index:150;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at 50% 42%, rgba(var(--rank-glow),0.5), rgba(var(--rank-glow),0.1) 22%, transparent 56%);}
+  #levelFx.go{animation:lvlflash .75s ease-out;}
+  @keyframes lvlflash{0%{opacity:0;transform:scale(.85);}18%{opacity:.9;}100%{opacity:0;transform:scale(1.18);}}
+  .lvl-num.pop{animation:lvlpop .6s cubic-bezier(.2,1.5,.4,1);}
+  @keyframes lvlpop{0%{transform:scale(1);}32%{transform:scale(1.32);}100%{transform:scale(1);}}
+
+  /* RANK-UP ceremony (themed by --rk / --rkg set inline) */
+  .rankup{width:100%;max-width:440px;text-align:center;position:relative;overflow:hidden;
+    background:radial-gradient(440px 300px at 50% 14%, rgba(var(--rkg),0.3), transparent 66%), linear-gradient(180deg,#0c1626,#060c16);
+    border:1px solid rgba(var(--rkg),0.55);border-radius:20px;padding:40px 24px 28px;
+    box-shadow:0 0 0 1px rgba(var(--rkg),0.2), 0 0 64px rgba(var(--rkg),0.45), 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(220,235,255,0.25), inset 0 0 70px rgba(var(--rkg),0.18);
+    animation:rise .6s cubic-bezier(.2,.9,.2,1);}
+  .rankup::before{content:"";position:absolute;inset:-50% 0 auto 0;height:100%;background:conic-gradient(from 0deg at 50% 0, transparent, rgba(var(--rkg),0.16), transparent 30%);animation:spin 8s linear infinite;pointer-events:none;}
+  .rankup>*{position:relative;}
+  .rankup .kicker{font-size:11px;letter-spacing:0.5em;text-transform:uppercase;color:var(--rk);text-shadow:0 0 14px rgba(var(--rkg),0.85);}
+  .rank-insignia{width:148px;height:148px;margin:18px auto 8px;display:grid;place-items:center;position:relative;
+    clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    background:linear-gradient(180deg, rgba(var(--rkg),0.32), rgba(var(--rkg),0.06));
+    box-shadow:0 0 50px rgba(var(--rkg),0.6);animation:rankpulse 2s ease-in-out infinite;}
+  .rank-insignia span{font-family:var(--disp);font-weight:700;font-size:86px;line-height:1;color:#fff;text-shadow:0 0 26px rgba(var(--rkg),1);}
+  @keyframes rankpulse{0%,100%{box-shadow:0 0 42px rgba(var(--rkg),0.5);}50%{box-shadow:0 0 74px rgba(var(--rkg),0.9);}}
+  .rank-name{font-family:var(--disp);font-weight:700;font-size:46px;line-height:1;margin:6px 0 2px;
+    background:linear-gradient(180deg,#fff,var(--rk));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 20px rgba(var(--rkg),0.7));}
+  .rank-sub{font-size:13px;color:var(--ink-dim);margin:8px auto 22px;max-width:300px;}
 </style>
 </head>
 <body>
@@ -409,6 +476,13 @@
   <!-- ===================== SHEET ===================== -->
   <section class="view active" id="view-sheet">
     <div class="panel sheet-hero">
+      <div class="hero-rank">
+        <div class="rank-badge" id="heroRankBadge"><span id="heroRankLetter">E</span></div>
+        <div class="rank-meta">
+          <div class="rank-meta-name" id="heroRankName">Awakened</div>
+          <div class="rank-meta-sub" id="heroRankSub">E-Rank · Level 1</div>
+        </div>
+      </div>
       <div class="class-tag" id="classTag">CLASS</div>
       <div class="class-name unclassed" id="className">[UNCLASSED]</div>
       <div class="class-blurb" id="classBlurb"></div>
@@ -599,6 +673,20 @@
   </div>
 </div>
 
+<!-- ===================== Rank-up ceremony ===================== -->
+<div class="overlay" id="rankOverlay">
+  <div class="rankup">
+    <div class="kicker">Rank Up</div>
+    <div class="rank-insignia"><span id="rankLetter">C</span></div>
+    <div class="rank-name" id="rankName">Adept</div>
+    <div class="rank-sub" id="rankSub"></div>
+    <button class="btn primary block" id="rankAccept">Accept</button>
+  </div>
+</div>
+
+<!-- level-up burst -->
+<div id="levelFx"></div>
+
 <script>
 "use strict";
 /* ================================================================
@@ -656,6 +744,23 @@ const TONE_MAX = TONE_WORDS.length;            // number of notches on the slide
 const TONE_MID = Math.round((TONE_MAX+1)/2);   // neutral default
 const GRIMDARK_TONE_MIN = TONE_MAX - 1;        // top two notches read as grimdark-leaning
 const COSY_TONE_MAX = 2;                        // bottom two notches read as cosy-leaning
+
+/* ---- Rank tiers — the headline progression ladder ----
+   Crossing into a new tier is a ceremonial RANK UP (the level-up payoff),
+   and the rank's colour themes the character sheet so the number visibly
+   changes something. Letters nod to the genre's E→S ranking convention. */
+const RANKS = [
+  { letter:'E',  name:'Awakened',   min:1,  color:'#8aa6c0', glow:'138,166,192' },
+  { letter:'D',  name:'Apprentice', min:5,  color:'#5fe0a8', glow:'95,224,168' },
+  { letter:'C',  name:'Adept',      min:10, color:'#57c3ff', glow:'87,195,255' },
+  { letter:'B',  name:'Hunter',     min:18, color:'#b98bff', glow:'185,139,255' },
+  { letter:'A',  name:'Elite',      min:28, color:'#ff9d5c', glow:'255,157,92' },
+  { letter:'S',  name:'Master',     min:42, color:'#ffd86b', glow:'255,216,107' },
+  { letter:'SS', name:'Sovereign',  min:60, color:'#eaf2ff', glow:'200,225,255' },
+];
+function rankForLevel(level){ let r=RANKS[0]; for(const x of RANKS){ if(level>=x.min) r=x; } return r; }
+function rankIndex(letter){ return RANKS.findIndex(r=>r.letter===letter); }
+function nextRank(level){ const i=RANKS.indexOf(rankForLevel(level)); return RANKS[i+1]||null; }
 
 /* ---- Class taxonomy (data-driven; extensible) -----------------
    Two tiers, resolved in evaluateClass():
@@ -776,7 +881,7 @@ const STORE_KEY = 'status.save.v1';
 let SAVE = null;
 
 function metaDefaults(){
-  return { seenLevel:1, seenTitles:[], seenAchievements:[], classRevealed:false, seenClass:null };
+  return { seenLevel:1, seenTitles:[], seenAchievements:[], classRevealed:false, seenClass:null, seenRank:null };
 }
 // Remap a book's tone from the old 5-point scale onto the current scale,
 // preserving the cosy / balanced / grimdark anchors. Runs once per old save.
@@ -1001,9 +1106,10 @@ function derive(){
   const achXp = ach.reduce((s,a)=>s + (a.unlocked ? a.def.xp : 0), 0);
   const xp = baseXp() + achXp;
   const lvl = levelFromXp(xp);
+  const rank = rankForLevel(lvl.level);
   const classId = evaluateClass(ctx);
   const titles = earnedTitles(ctx);
-  return { ctx, xp, lvl, classId, titles, ach, achXp };
+  return { ctx, xp, lvl, rank, classId, titles, ach, achXp };
 }
 
 /* ================================================================
@@ -1060,22 +1166,33 @@ function applyChange(mutator, action){
   }
   SAVE.meta.seenTitles = after.titles.slice();
 
-  // 4) Level ups.
+  // 4) Level ups (with on-screen juice) — and the big payoff: RANK UPS.
+  let leveledUp = false, rankUp = null;
   if(after.lvl.level > SAVE.meta.seenLevel){
+    leveledUp = true;
     notify({ kind:'system', head:'Level Up', title:'You are now Level '+after.lvl.level+'.',
       lines:'The work compounds.' });
     SAVE.meta.seenLevel = after.lvl.level;
   } else if(after.lvl.level < SAVE.meta.seenLevel){
     SAVE.meta.seenLevel = after.lvl.level; // stay consistent after edits/imports
   }
+  const curRank = after.rank.letter;
+  if(SAVE.meta.seenRank == null){
+    SAVE.meta.seenRank = curRank; // baseline, no ceremony
+  } else if(rankIndex(curRank) > rankIndex(SAVE.meta.seenRank)){
+    rankUp = after.rank;
+    SAVE.meta.seenRank = curRank;
+  } else if(curRank !== SAVE.meta.seenRank){
+    SAVE.meta.seenRank = curRank;
+  }
 
   // 5) Class reveal / shift.
-  let ceremony = null;
+  let classCeremony = null;
   if(after.classId){
     if(!SAVE.meta.classRevealed){
       SAVE.meta.classRevealed = true;
       SAVE.meta.seenClass = after.classId;
-      ceremony = after.classId;
+      classCeremony = after.classId;
     } else if(after.classId !== SAVE.meta.seenClass){
       const c = classById(after.classId);
       notify({ kind:'system', head:'Your Path Has Changed', title:'You are now a '+c.name+'.',
@@ -1086,8 +1203,18 @@ function applyChange(mutator, action){
 
   persist();
   render();
-  if(ceremony) setTimeout(()=>showCeremony(ceremony), 350);
+
+  // Play the moments: a quick level-up flash, then any full-screen ceremonies in turn.
+  if(leveledUp && !rankUp) levelUpFx();
+  ceremonyQueue = [];
+  if(classCeremony) ceremonyQueue.push(()=>showCeremony(classCeremony));
+  if(rankUp) ceremonyQueue.push(()=>showRankUp(rankUp));
+  if(ceremonyQueue.length) setTimeout(runCeremonies, 380);
 }
+
+// Ceremony queue — full-screen moments shown one at a time.
+let ceremonyQueue = [];
+function runCeremonies(){ const fn = ceremonyQueue.shift(); if(fn) fn(); }
 
 /* ================================================================
    System notifications
@@ -1119,11 +1246,18 @@ function render(){
   renderShelf();
   renderCodex(d);
   renderCardLater();
-  document.getElementById('hdrPill').textContent =
-    (d.classId ? classById(d.classId).name.toUpperCase()+' · L'+d.lvl.level : 'LVL '+d.lvl.level);
+  document.getElementById('hdrPill').textContent = d.rank.letter + '-Rank · L' + d.lvl.level;
 }
 
 function renderSheet(d){
+  // Rank theming — recolours the top of the sheet so the level visibly matters.
+  const rank = d.rank;
+  document.documentElement.style.setProperty('--rank', rank.color);
+  document.documentElement.style.setProperty('--rank-glow', rank.glow);
+  $('heroRankLetter').textContent = rank.letter;
+  $('heroRankName').textContent = rank.name;
+  $('heroRankSub').textContent = rank.letter + '-Rank · Level ' + d.lvl.level;
+
   const cName = document.getElementById('className');
   const cTag = document.getElementById('classTag');
   const cBlurb = document.getElementById('classBlurb');
@@ -1462,8 +1596,27 @@ function showCeremony(classId){
   $('ceremonySigil').innerHTML=radarSVG(derive().ctx, 130);
   $('ceremonyOverlay').classList.add('show');
 }
+// RANK UP — the milestone payoff. Big letter insignia, themed to the rank colour.
+function showRankUp(rank){
+  const ov=$('rankOverlay');
+  ov.style.setProperty('--rk', rank.color);
+  ov.style.setProperty('--rkg', rank.glow);
+  $('rankLetter').textContent = rank.letter;
+  $('rankName').textContent = rank.name;
+  $('rankSub').textContent = 'You have risen to '+rank.letter+'-Rank.';
+  ov.classList.add('show');
+}
 function initCeremony(){
-  $('ceremonyAccept').addEventListener('click', ()=>$('ceremonyOverlay').classList.remove('show'));
+  $('ceremonyAccept').addEventListener('click', ()=>{ $('ceremonyOverlay').classList.remove('show'); setTimeout(runCeremonies,260); });
+  $('rankAccept').addEventListener('click', ()=>{ $('rankOverlay').classList.remove('show'); setTimeout(runCeremonies,260); });
+}
+
+// Level-up juice: a radial burst flash + a pop on the level number.
+function levelUpFx(){
+  const fx=$('levelFx');
+  if(fx){ fx.classList.remove('go'); void fx.offsetWidth; fx.classList.add('go'); }
+  const ln=$('lvlBig');
+  if(ln){ ln.classList.remove('pop'); void ln.offsetWidth; ln.classList.add('pop'); }
 }
 
 // Menu / data
@@ -1521,24 +1674,24 @@ function drawCard(){
   const cv=$('cardCanvas'); const ctx2=cv.getContext('2d');
   const W=cv.width, H=cv.height;
   const d=derive();
-  const accent='#57c3ff', ink='#ecf3fc', dim='#a2b6d2', faint='#647a98';
+  const accent=d.rank.color, G=d.rank.glow, ink='#ecf3fc', dim='#a2b6d2', faint='#647a98';
 
   // ground — deep blue
   const g=ctx2.createLinearGradient(0,0,0,H);
   g.addColorStop(0,'#0c1a2e'); g.addColorStop(0.6,'#081222'); g.addColorStop(1,'#05090f');
   ctx2.fillStyle=g; ctx2.fillRect(0,0,W,H);
-  // soft top glow
+  // soft top glow (rank-coloured)
   const rg=ctx2.createRadialGradient(W/2,H*0.2,40,W/2,H*0.2,W*0.85);
-  rg.addColorStop(0,'rgba(87,195,255,0.22)'); rg.addColorStop(1,'rgba(87,195,255,0)');
+  rg.addColorStop(0,'rgba('+G+',0.24)'); rg.addColorStop(1,'rgba('+G+',0)');
   ctx2.fillStyle=rg; ctx2.fillRect(0,0,W,H);
   // faint holographic grid
-  ctx2.strokeStyle='rgba(87,195,255,0.06)'; ctx2.lineWidth=1;
+  ctx2.strokeStyle='rgba('+G+',0.06)'; ctx2.lineWidth=1;
   for(let gx=80; gx<W; gx+=64){ ctx2.beginPath(); ctx2.moveTo(gx,0); ctx2.lineTo(gx,H); ctx2.stroke(); }
   for(let gy=80; gy<H; gy+=64){ ctx2.beginPath(); ctx2.moveTo(0,gy); ctx2.lineTo(W,gy); ctx2.stroke(); }
   // frame with glow
   ctx2.save();
-  ctx2.shadowColor='rgba(87,195,255,0.5)'; ctx2.shadowBlur=24;
-  ctx2.strokeStyle='rgba(87,195,255,0.45)'; ctx2.lineWidth=3;
+  ctx2.shadowColor='rgba('+G+',0.5)'; ctx2.shadowBlur=24;
+  ctx2.strokeStyle='rgba('+G+',0.5)'; ctx2.lineWidth=3;
   ctx2.strokeRect(40,40,W-80,H-80);
   ctx2.restore();
 
@@ -1547,28 +1700,33 @@ function drawCard(){
 
   // header
   ctx2.fillStyle=dim; ctx2.font='600 30px "IBM Plex Mono", monospace';
-  ctx2.fillText('S T A T U S', cx, 130);
+  ctx2.fillText('S T A T U S', cx, 122);
   ctx2.save();
-  ctx2.shadowColor='rgba(87,195,255,0.8)'; ctx2.shadowBlur=14;
+  ctx2.shadowColor=accent; ctx2.shadowBlur=14;
   ctx2.fillStyle=accent; ctx2.font='600 22px "IBM Plex Mono", monospace';
-  ctx2.fillText(d.classId? 'CLASS' : 'UNCLASSED', cx, 188);
+  ctx2.fillText(d.classId? 'CLASS' : 'UNCLASSED', cx, 178);
   ctx2.restore();
 
   // class name — silver gradient with glow
-  const grad=ctx2.createLinearGradient(0,230,0,300);
+  const grad=ctx2.createLinearGradient(0,220,0,288);
   grad.addColorStop(0,'#fbfdff'); grad.addColorStop(1,'#a8c0e2');
   ctx2.save();
-  ctx2.shadowColor='rgba(87,195,255,0.65)'; ctx2.shadowBlur=30;
-  ctx2.fillStyle=grad; ctx2.font='700 96px "Barlow Condensed", sans-serif';
-  ctx2.fillText(d.classId? classById(d.classId).name.toUpperCase() : '[ UNCLASSED ]', cx, 290);
+  ctx2.shadowColor='rgba('+G+',0.65)'; ctx2.shadowBlur=30;
+  ctx2.fillStyle=grad; ctx2.font='700 92px "Barlow Condensed", sans-serif';
+  ctx2.fillText(d.classId? classById(d.classId).name.toUpperCase() : '[ UNCLASSED ]', cx, 280);
   ctx2.restore();
 
-  // level
-  ctx2.fillStyle=dim; ctx2.font='500 34px "IBM Plex Mono", monospace';
-  ctx2.fillText('LEVEL '+d.lvl.level, cx, 348);
+  // level + rank
+  ctx2.fillStyle=dim; ctx2.font='500 32px "IBM Plex Mono", monospace';
+  ctx2.fillText('LEVEL '+d.lvl.level+'   ·   '+d.rank.letter+'-RANK', cx, 330);
+  ctx2.save();
+  ctx2.shadowColor=accent; ctx2.shadowBlur=14;
+  ctx2.fillStyle=accent; ctx2.font='700 30px "Barlow Condensed", sans-serif';
+  ctx2.fillText(d.rank.name.toUpperCase(), cx, 370);
+  ctx2.restore();
 
   // radar sigil (glow applied inside)
-  drawRadarCanvas(ctx2, cx, 620, 168, d.ctx, accent);
+  drawRadarCanvas(ctx2, cx, 624, 166, d.ctx, accent);
 
   // titles
   let y=858;
@@ -1580,7 +1738,7 @@ function drawCard(){
     ctx2.fillText('— none yet —', cx, y);
   } else {
     ctx2.save();
-    ctx2.shadowColor='rgba(87,195,255,0.4)'; ctx2.shadowBlur=12;
+    ctx2.shadowColor='rgba('+G+',0.4)'; ctx2.shadowBlur=12;
     ctx2.fillStyle=ink; ctx2.font='600 40px "Barlow Condensed", sans-serif';
     earnedTs.slice(0,4).forEach(t=>{ ctx2.fillText(t.name, cx, y); y+=50; });
     ctx2.restore();
@@ -1593,7 +1751,7 @@ function drawCard(){
 
   // footer mark
   ctx2.save();
-  ctx2.shadowColor='rgba(87,195,255,0.9)'; ctx2.shadowBlur=14;
+  ctx2.shadowColor='rgba('+G+',0.9)'; ctx2.shadowBlur=14;
   ctx2.fillStyle=accent; ctx2.beginPath(); ctx2.arc(cx, H-92, 7, 0, Math.PI*2); ctx2.fill();
   ctx2.restore();
   ctx2.fillStyle=faint; ctx2.font='500 22px "IBM Plex Mono", monospace';
@@ -1618,9 +1776,9 @@ function drawRadarCanvas(ctx2, cx, cy, R, c, accent){
   ctx2.beginPath();
   order.forEach((ax,i)=>{ const[x,y]=pt(i, Math.max(0.03,c[ax]/100)); i?ctx2.lineTo(x,y):ctx2.moveTo(x,y); });
   ctx2.closePath();
-  ctx2.fillStyle='rgba(87,195,255,0.22)'; ctx2.fill();
+  ctx2.fillStyle='rgba(120,180,235,0.20)'; ctx2.fill();
   ctx2.save();
-  ctx2.shadowColor='rgba(87,195,255,0.8)'; ctx2.shadowBlur=18;
+  ctx2.shadowColor=accent; ctx2.shadowBlur=18;
   ctx2.strokeStyle=accent; ctx2.lineWidth=3.5; ctx2.stroke();
   ctx2.restore();
   // vertex dots
@@ -1699,6 +1857,11 @@ function initSplash(){
 
 function boot(){
   SAVE = loadSave();
+  // Baseline rank/level to current so existing saves don't fire retroactive moments.
+  const d0 = derive();
+  if(SAVE.meta.seenRank == null) SAVE.meta.seenRank = d0.rank.letter;
+  if((SAVE.meta.seenLevel||1) < d0.lvl.level) SAVE.meta.seenLevel = d0.lvl.level;
+  persist();
   const splashing = initSplash();
   initNav(); initForm(); initShelf(); initFinishModal();
   initCeremony(); initMenu(); initCard(); initPWA();

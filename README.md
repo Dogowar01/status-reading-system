@@ -72,6 +72,14 @@ Because the path is recomputed from the live shelf, it **shifts** as reading hab
 (e.g. a Delver who binges horror becomes a Sleepless), firing a quiet "Your path has changed"
 System note. Thresholds live in `CONFIG` (`GENRE_DOMINANCE_*`, `LOREMASTER_*`).
 
+### Ranks (the level payoff)
+Levels roll up into a named **rank ladder** (`RANKS`): E Awakened → D Apprentice → C Adept →
+B Hunter → A Elite → S Master → SS Sovereign. Each rank has a colour that themes the top of
+the sheet, the header pill and the shareable card, so the level number visibly *changes
+something*. Crossing into a new tier fires a full-screen **RANK UP** ceremony (the milestone
+moment); ordinary level-ups get a flash + number pop. Rank thresholds are level-based and
+live in `RANKS`; `seenRank` in the save tracks the last rank shown so ceremonies fire once.
+
 ### Titles vs. Achievements
 - **Titles** are *identity* badges earned for behavioural patterns (e.g. The Unflinching,
   Loremaster). They show on the sheet and the shareable card.
