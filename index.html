@@ -465,7 +465,7 @@
         <label class="field tone-field">
           <span class="lab">Tone</span>
           <div class="scale"><span>Cosy</span><span>Grimdark</span></div>
-          <input type="range" id="fTone" min="1" max="5" step="1" value="3" />
+          <input type="range" id="fTone" min="1" max="7" step="1" value="4" />
           <div class="tone-readout" id="toneReadout">Balanced</div>
         </label>
         <label class="field">
@@ -533,7 +533,7 @@
     <label class="field tone-field">
       <span class="lab">Confirm its tone</span>
       <div class="scale"><span>Cosy</span><span>Grimdark</span></div>
-      <input type="range" id="mTone" min="1" max="5" step="1" value="3" />
+      <input type="range" id="mTone" min="1" max="7" step="1" value="4" />
       <div class="tone-readout" id="mToneReadout">Balanced</div>
     </label>
     <label class="field">
@@ -592,7 +592,6 @@ const CONFIG = {
   // Streak
   STREAK_GRACE_DAYS: 1,      // soft streak: one missed day is forgiven (a "freeze")
   // Titles
-  GRIMDARK_TONE_MIN: 4,      // tone >= this counts as grimdark-leaning
   UNFLINCHING_N: 5,
   SERIES_COMPLETE_N: 3,
   DISCERNING_N: 3,
@@ -617,7 +616,15 @@ const RANGE_TARGET = 7;       // distinct genres that reads as "fully ranged"
 const AXES = ['depth','range','momentum','tone','lore'];
 const AXIS_LABEL = {depth:'Depth',range:'Range',momentum:'Momentum',tone:'Tone',lore:'Lore'};
 
-const TONE_WORDS = ['Cosy','Gentle','Balanced','Dark','Grimdark'];
+// Tone scale — the SINGLE SOURCE OF TRUTH for the Cosy↔Grimdark spectrum.
+// Add, remove or rename entries to recustomise the slider: its notches, the
+// readout labels, the Tone axis, the book spines, and all tone-based scoring
+// (grimdark/cosy thresholds) derive from this array, so they auto-rebalance.
+const TONE_WORDS = ['Cosy','Gentle','Wistful','Balanced','Somber','Dark','Grimdark'];
+const TONE_MAX = TONE_WORDS.length;            // number of notches on the slider
+const TONE_MID = Math.round((TONE_MAX+1)/2);   // neutral default
+const GRIMDARK_TONE_MIN = TONE_MAX - 1;        // top two notches read as grimdark-leaning
+const COSY_TONE_MAX = 2;                        // bottom two notches read as cosy-leaning
 
 /* ---- Class taxonomy (data-driven; extensible) -----------------
    Each class scores the reader's context; highest qualifying score wins.
@@ -682,7 +689,7 @@ const ACHIEVEMENTS = [
   { id:'all-devouring', name:'All-Devouring',    desc:'Finish across 10 genres',                xp:500,  p:c=>[Math.min(c.genreCount,10),10] },
   { id:'into-the-dark', name:'Into the Dark',    desc:'Finish 10 grimdark-leaning books',       xp:250,  p:c=>[Math.min(c.grimdarkFinished,10),10] },
   { id:'comfort-reader',name:'Comfort Reader',   desc:'Finish 5 cosy-leaning books',            xp:150,  p:c=>[Math.min(c.cosyFinished,5),5] },
-  { id:'full-spectrum', name:'Full Spectrum',    desc:'Finish a book at every tone, Cosy to Grimdark', xp:200, p:c=>[Math.min(c.distinctTones,5),5] },
+  { id:'full-spectrum', name:'Full Spectrum',    desc:'Finish books across 5 distinct tones',    xp:200,  p:c=>[Math.min(c.distinctTones,5),5] },
   { id:'annotator',     name:'Annotator',        desc:'Leave a note on 15 finished books',      xp:200,  p:c=>[Math.min(c.notesCount,15),15] },
   { id:'loyalist',      name:'Loyalist',         desc:'Finish 6 books by a single author',      xp:250,  p:c=>[Math.min(c.topAuthorFinished,6),6] },
   { id:'relentless',    name:'Relentless',       desc:'Hold a 14-day streak',                   xp:300,  p:c=>[Math.min(c.bestStreak,14),14] },
@@ -705,9 +712,21 @@ let SAVE = null;
 function metaDefaults(){
   return { seenLevel:1, seenTitles:[], seenAchievements:[], classRevealed:false, seenClass:null };
 }
+// Remap a book's tone from the old 5-point scale onto the current scale,
+// preserving the cosy / balanced / grimdark anchors. Runs once per old save.
+const TONE_MIGRATE_V1 = { 1:1, 2:2, 3:4, 4:6, 5:7 };
+function migrateSave(s){
+  if(!s.v || s.v < 2){
+    for(const b of (s.books||[])){
+      b.tone = TONE_MIGRATE_V1[Math.round(b.tone)] || TONE_MID;
+    }
+    s.v = 2;
+  }
+  return s;
+}
 function freshSave(){
   return {
-    v:1,
+    v:2,
     createdAt: Date.now(),
     books: [],      // {id,title,author,series,genre,tone,pages,status,note,reread,addedAt,finishedAt}
     sessions: [],   // {id,bookId,at}
@@ -722,7 +741,7 @@ function loadSave(){
     if(!s || typeof s!=='object' || !Array.isArray(s.books)) return freshSave();
     s.sessions = s.sessions || [];
     s.meta = Object.assign(metaDefaults(), s.meta||{});
-    return s;
+    return migrateSave(s);
   }catch(e){ console.warn('load failed', e); return freshSave(); }
 }
 function persist(){
@@ -799,9 +818,9 @@ function computeContext(){
   const nF = finished.length;
 
   // Tone — running average of cosy↔grimdark across finished books, mapped 0..100.
-  let toneAvg = 3;
-  if(nF) toneAvg = finished.reduce((s,b)=>s+(b.tone||3),0)/nF;
-  const tone = nF ? ((toneAvg-1)/4)*100 : 50;
+  let toneAvg = TONE_MID;
+  if(nF) toneAvg = finished.reduce((s,b)=>s+(b.tone||TONE_MID),0)/nF;
+  const tone = nF ? ((toneAvg-1)/(TONE_MAX-1))*100 : 50;
 
   // Range — distinct genres among finished, scaled to a target spread.
   const genreSet = new Set(finished.map(b=>b.genre));
@@ -848,11 +867,11 @@ function computeContext(){
   const mean = mag.reduce((a,b)=>a+b,0)/mag.length;
   const spread = Math.round(Math.sqrt(mag.reduce((a,b)=>a+(b-mean)*(b-mean),0)/mag.length));
 
-  const grimdarkFinished = finished.filter(b=>(b.tone||3) >= CONFIG.GRIMDARK_TONE_MIN).length;
+  const grimdarkFinished = finished.filter(b=>(b.tone||TONE_MID) >= GRIMDARK_TONE_MIN).length;
 
   // Extra tallies for records + achievements.
-  const cosyFinished = finished.filter(b=>(b.tone||3) <= 2).length;
-  const distinctTones = new Set(finished.map(b=>b.tone||3)).size;
+  const cosyFinished = finished.filter(b=>(b.tone||TONE_MID) <= COSY_TONE_MAX).length;
+  const distinctTones = new Set(finished.map(b=>b.tone||TONE_MID)).size;
   const pagesRead = finished.reduce((s,b)=>s+(b.pages||0),0);
   const maxPages = finished.reduce((m,b)=>Math.max(m,b.pages||0),0);
   const notesCount = finished.filter(b=>b.note && b.note.trim()).length;
@@ -1046,7 +1065,7 @@ function renderSheet(d){
   list.innerHTML = '';
   for(const ax of AXES){
     const v = d.ctx[ax];
-    const valTxt = ax==='tone' ? TONE_WORDS[Math.max(0,Math.min(4,Math.round((v/100)*4)))] : v;
+    const valTxt = ax==='tone' ? TONE_WORDS[Math.max(0,Math.min(TONE_MAX-1,Math.round((v/100)*(TONE_MAX-1))))] : v;
     const el = document.createElement('div');
     el.className='axis';
     el.innerHTML = '<span class="name">'+AXIS_LABEL[ax]+'</span>'+
@@ -1182,7 +1201,7 @@ function renderShelf(){
         '<div class="meta">'+
           '<span class="tag status '+b.status+'">'+statusLabel+'</span>'+
           '<span class="tag">'+esc(b.genre)+'</span>'+
-          '<span class="tag">'+TONE_WORDS[(b.tone||3)-1]+'</span>'+
+          '<span class="tag">'+TONE_WORDS[(b.tone||TONE_MID)-1]+'</span>'+
           (b.pages?'<span class="tag">'+b.pages+'p</span>':'')+
           (b.reread?'<span class="tag">reread</span>':'')+
         '</div>'+
@@ -1194,8 +1213,8 @@ function renderShelf(){
 }
 function spineColor(b){
   // Tone-tinted spine, on-palette: cosy→teal, grimdark→violet.
-  const t=(b.tone||3);
-  const mix=(t-1)/4;
+  const t=(b.tone||TONE_MID);
+  const mix=(t-1)/(TONE_MAX-1);
   const c1=[95,224,208], c2=[122,90,222];
   const r=Math.round(c1[0]+(c2[0]-c1[0])*mix), g=Math.round(c1[1]+(c2[1]-c1[1])*mix), bl=Math.round(c1[2]+(c2[2]-c1[2])*mix);
   return 'rgb('+r+','+g+','+bl+')'+ (b.status==='abandoned'?';opacity:.35':'');
@@ -1270,6 +1289,7 @@ function initForm(){
   sel.value='LitRPG';
 
   const toneInput=$('fTone'), toneOut=$('toneReadout');
+  toneInput.max=TONE_MAX; toneInput.value=TONE_MID;
   const upd=()=> toneOut.textContent = TONE_WORDS[toneInput.value-1];
   toneInput.addEventListener('input', upd); upd();
 
@@ -1293,7 +1313,7 @@ function initForm(){
       note: curStatus==='finished'? $('fNote').value.trim() : '',
       reread: curStatus==='finished'? $('fReread').checked : false
     });
-    e.target.reset(); sel.value='LitRPG'; toneInput.value=3; upd();
+    e.target.reset(); sel.value='LitRPG'; toneInput.value=TONE_MID; upd();
     curStatus='reading';
     document.querySelectorAll('#fStatusSeg button').forEach(x=>x.classList.toggle('on', x.dataset.s==='reading'));
     $('finishExtra').style.display='none';
@@ -1326,7 +1346,7 @@ function openFinishModal(id){
   const b=SAVE.books.find(x=>x.id===id); if(!b) return;
   finishingId=id;
   $('finishModalSub').textContent = b.title + (b.author? ' · '+b.author : '');
-  const mt=$('mTone'); mt.value=b.tone||3;
+  const mt=$('mTone'); mt.max=TONE_MAX; mt.value=b.tone||TONE_MID;
   $('mToneReadout').textContent=TONE_WORDS[mt.value-1];
   $('mNote').value=b.note||'';
   $('mReread').checked=!!b.reread;
@@ -1392,7 +1412,7 @@ function importSave(e){
       if(!data || !Array.isArray(data.books)) throw new Error('Not a STATUS save.');
       data.sessions=data.sessions||[];
       data.meta=Object.assign(metaDefaults(), data.meta||{});
-      SAVE=data; persist(); render();
+      SAVE=migrateSave(data); persist(); render();
       $('menuOverlay').classList.remove('show');
       notify({kind:'system', head:'Save Imported', title:'Character restored.', lines:SAVE.books.length+' books on the shelf.'});
     }catch(err){

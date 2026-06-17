@@ -69,6 +69,15 @@ and worldbuilding weights (`LORE_WEIGHT`) are all data-driven and built to be ex
 - **Tone** — running average of the Cosy↔Grimdark lean (identity, not a score).
 - **Lore** — proportion of heavy-worldbuilding reads.
 
+### The tone scale
+The Cosy↔Grimdark spectrum is a 7-point scale defined by the `TONE_WORDS` array
+(`Cosy · Gentle · Wistful · Balanced · Somber · Dark · Grimdark`) — the single source
+of truth. Add, remove or rename entries and everything follows automatically: the slider
+notches, readout labels, the Tone axis, book-spine colours, and the grimdark/cosy
+thresholds (top-two / bottom-two notches) all derive from the array's length. Old saves
+logged on the original 5-point scale are migrated on load (`migrateSave`, save `v` → 2),
+so existing characters keep their tone meaning.
+
 ## Out of scope for v1 (Phase 2 backlog)
 
 Open Library lookup (via a Cloudflare Worker proxy), seeded genre catalogue, generated book
