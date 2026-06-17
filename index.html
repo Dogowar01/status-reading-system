@@ -43,6 +43,7 @@
     --disp:'Barlow Condensed', 'Oswald', 'Arial Narrow', system-ui, sans-serif;
     --maxw:560px;
     --safe-b:env(safe-area-inset-bottom, 0px);
+    --safe-t:env(safe-area-inset-top, 0px);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);}
@@ -76,8 +77,8 @@
     position:sticky;top:0;z-index:30;
     max-width:var(--maxw);margin:0 auto;
     display:flex;align-items:center;justify-content:space-between;
-    padding:14px 16px 12px;
-    background:linear-gradient(#060b14 70%, transparent);
+    padding:calc(14px + var(--safe-t)) 16px 12px;
+    background:linear-gradient(#060b14 72%, transparent);
     backdrop-filter:blur(6px);
   }
   .brand{display:flex;align-items:baseline;gap:9px;}
@@ -294,7 +295,7 @@
   nav.tabs button.on svg{stroke:var(--accent);filter:drop-shadow(0 0 5px rgba(87,195,255,0.8));}
 
   /* ---- System notifications ---- */
-  #notifs{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;flex-direction:column;align-items:center;gap:9px;padding:12px 12px 0;pointer-events:none;}
+  #notifs{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;flex-direction:column;align-items:center;gap:9px;padding:calc(12px + var(--safe-t)) 12px 0;pointer-events:none;}
   .sysbox{
     pointer-events:auto;width:100%;max-width:420px;
     background:linear-gradient(180deg, rgba(28,58,96,0.92), rgba(10,22,40,0.94));
