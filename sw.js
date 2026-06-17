@@ -1,11 +1,14 @@
 /* STATUS — service worker. Offline-first app shell cache. */
-const CACHE = 'status-v1';
+const CACHE = 'status-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon.svg',
-  './icon-maskable.svg'
+  './splash.jpg',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable.png',
+  './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (e) => {

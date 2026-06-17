@@ -14,7 +14,9 @@ No accounts. No backend. No AI. No network dependency. Runs fully offline from f
 | `index.html` | The entire app — UI, game logic, rendering, persistence. Vanilla JS, no build step. |
 | `sw.js` | Service worker. Network-first for the page (so deploys ship), cache-first for assets (offline). |
 | `manifest.webmanifest` | PWA manifest — makes the app installable. |
-| `icon.svg`, `icon-maskable.svg` | App icons (geometric sigil). |
+| `icon-192.png`, `icon-512.png`, `icon-maskable.png`, `apple-touch-icon.png` | App icons (optimised from the `icon.png` master). The maskable variant is padded for Android's circular crop. |
+| `splash.jpg` | Launch splash key-art (compressed from the `background.png` master); shown once per session on cold launch, then fades. |
+| `icon.png`, `background.png` | Full-resolution source masters for the above — not loaded by the app; regenerate the web assets from these. |
 
 ## Run locally
 
