@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0c0b0a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="STATUS" />
+<title>STATUS — Reading System</title>
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="./icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     STATUS — a reading companion that is itself a LitRPG.
+     Single-file app. Vanilla JS. localStorage only. Offline-first.
+     ============================================================ */
+  :root{
+    --bg:#0c0b0a;
+    --bg-soft:#121110;
+    --panel:#16140f;
+    --panel-2:#1b1813;
+    --line:#2a261f;
+    --line-soft:#221f19;
+    --ink:#ebe4d4;
+    --ink-dim:#9a9082;
+    --ink-faint:#6a6358;
+    --accent:#7fa7c4;        /* the quiet System steel-blue */
+    --accent-soft:#46596a;
+    --accent-glow:rgba(127,167,196,0.16);
+    --ember:#c7783f;         /* secondary, used sparingly */
+    --good:#8bb38a;
+    --radius:14px;
+    --mono:'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+    --disp:'Barlow Condensed', 'Oswald', 'Arial Narrow', system-ui, sans-serif;
+    --maxw:560px;
+    --safe-b:env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);}
+  body{
+    font-family:var(--mono);
+    font-size:15px;line-height:1.45;
+    min-height:100dvh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(127,167,196,0.05), transparent 60%),
+      var(--bg);
+    overscroll-behavior-y:none;
+  }
+  h1,h2,h3{font-family:var(--disp);font-weight:600;letter-spacing:0.02em;margin:0;}
+  button{font-family:var(--mono);cursor:pointer;}
+  ::selection{background:var(--accent-glow);}
+  /* ---- layout shell ---- */
+  #app{max-width:var(--maxw);margin:0 auto;padding:0 16px calc(96px + var(--safe-b));}
+  header.top{
+    position:sticky;top:0;z-index:30;
+    max-width:var(--maxw);margin:0 auto;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px 12px;
+    background:linear-gradient(var(--bg) 72%, transparent);
+    backdrop-filter:blur(2px);
+  }
+  .brand{display:flex;align-items:baseline;gap:9px;}
+  .brand .mark{font-family:var(--disp);font-weight:700;font-size:22px;letter-spacing:0.16em;color:var(--ink);}
+  .brand .sub{font-size:10px;letter-spacing:0.28em;color:var(--ink-faint);text-transform:uppercase;}
+  .lvl-pill{
+    font-size:11px;letter-spacing:0.12em;color:var(--accent);
+    border:1px solid var(--accent-soft);border-radius:999px;padding:4px 10px;
+    text-transform:uppercase;white-space:nowrap;
+  }
+  .iconbtn{
+    background:none;border:1px solid var(--line);color:var(--ink-dim);
+    border-radius:9px;padding:6px 9px;font-size:12px;letter-spacing:0.08em;
+  }
+  .iconbtn:hover{border-color:var(--accent-soft);color:var(--ink);}
+
+  /* ---- views ---- */
+  .view{display:none;animation:fade .25s ease;}
+  .view.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .section-label{
+    font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:var(--ink-faint);
+    margin:22px 2px 10px;display:flex;align-items:center;gap:10px;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line-soft);}
+
+  .panel{
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;
+  }
+  .panel + .panel{margin-top:12px;}
+
+  /* ---- character sheet ---- */
+  .sheet-hero{position:relative;overflow:hidden;text-align:center;padding:26px 16px 20px;}
+  .sheet-hero .class-name{
+    font-family:var(--disp);font-weight:700;font-size:38px;line-height:1;
+    letter-spacing:0.03em;margin:2px 0 4px;
+  }
+  .sheet-hero .class-name.unclassed{color:var(--ink-dim);letter-spacing:0.14em;font-size:30px;}
+  .sheet-hero .class-tag{font-size:10px;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent);}
+  .sheet-hero .class-blurb{font-size:12.5px;color:var(--ink-dim);max-width:340px;margin:8px auto 0;}
+
+  .level-row{display:flex;align-items:center;gap:14px;margin:18px 0 2px;}
+  .lvl-num{font-family:var(--disp);font-weight:700;font-size:30px;line-height:1;color:var(--ink);}
+  .lvl-num small{display:block;font-family:var(--mono);font-size:9px;letter-spacing:0.24em;color:var(--ink-faint);font-weight:400;}
+  .xpbar{flex:1;}
+  .xpbar .track{height:8px;border-radius:6px;background:var(--bg-soft);border:1px solid var(--line);overflow:hidden;}
+  .xpbar .fill{height:100%;background:linear-gradient(90deg,var(--accent-soft),var(--accent));border-radius:6px;transition:width .6s cubic-bezier(.2,.8,.2,1);}
+  .xpbar .meta{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin-top:6px;letter-spacing:0.04em;}
+
+  /* radar + axes */
+  .axes-wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap;}
+  .radar{flex:0 0 auto;}
+  .axes-list{flex:1;min-width:180px;display:flex;flex-direction:column;gap:9px;}
+  .axis{display:grid;grid-template-columns:64px 1fr 30px;align-items:center;gap:10px;}
+  .axis .name{font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-dim);}
+  .axis .bar{height:6px;border-radius:4px;background:var(--bg-soft);border:1px solid var(--line-soft);overflow:hidden;}
+  .axis .bar i{display:block;height:100%;background:var(--accent);opacity:.85;transition:width .6s ease;}
+  .axis .val{font-size:10.5px;color:var(--ink-faint);text-align:right;}
+
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .stat{background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:10px;padding:11px 12px;text-align:center;}
+  .stat .n{font-family:var(--disp);font-weight:700;font-size:24px;line-height:1;color:var(--ink);}
+  .stat .l{font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-faint);margin-top:5px;}
+
+  .titles{display:flex;flex-wrap:wrap;gap:8px;}
+  .title-chip{
+    border:1px solid var(--accent-soft);border-radius:999px;padding:5px 12px;
+    font-size:11px;letter-spacing:0.08em;color:var(--ink);background:var(--accent-glow);
+  }
+  .title-chip.locked{border-color:var(--line);color:var(--ink-faint);background:none;}
+  .title-chip .d{display:block;font-size:9px;color:var(--ink-faint);letter-spacing:0.02em;margin-top:1px;}
+
+  /* ---- shelf ---- */
+  .filters{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;}
+  .chip{
+    border:1px solid var(--line);background:var(--bg-soft);color:var(--ink-dim);
+    border-radius:999px;padding:5px 12px;font-size:11px;letter-spacing:0.08em;
+  }
+  .chip.active{border-color:var(--accent-soft);color:var(--ink);background:var(--accent-glow);}
+  .book{
+    display:flex;gap:12px;align-items:flex-start;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:12px 13px;margin-bottom:10px;position:relative;
+  }
+  .book .spine{flex:0 0 6px;align-self:stretch;border-radius:4px;background:var(--accent-soft);opacity:.7;}
+  .book .body{flex:1;min-width:0;}
+  .book .t{font-family:var(--disp);font-size:18px;font-weight:600;line-height:1.05;}
+  .book .a{font-size:12px;color:var(--ink-dim);margin-top:1px;}
+  .book .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+  .tag{font-size:10px;letter-spacing:0.06em;color:var(--ink-faint);border:1px solid var(--line-soft);border-radius:6px;padding:2px 7px;}
+  .tag.status{text-transform:uppercase;letter-spacing:0.14em;}
+  .tag.reading{color:var(--accent);border-color:var(--accent-soft);}
+  .tag.finished{color:var(--good);border-color:#3f5240;}
+  .tag.abandoned{color:var(--ink-faint);}
+  .book .note{font-size:11.5px;color:var(--ink-dim);margin-top:8px;font-style:italic;border-left:2px solid var(--line);padding-left:9px;}
+  .book .acts{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap;}
+  .empty{text-align:center;color:var(--ink-faint);padding:40px 20px;font-size:13px;}
+  .empty .big{font-family:var(--disp);font-size:20px;color:var(--ink-dim);letter-spacing:0.1em;margin-bottom:6px;}
+
+  /* ---- buttons ---- */
+  .btn{
+    border:1px solid var(--line);background:var(--bg-soft);color:var(--ink);
+    border-radius:9px;padding:8px 13px;font-size:12px;letter-spacing:0.06em;
+    transition:border-color .15s, background .15s;
+  }
+  .btn:hover{border-color:var(--accent-soft);}
+  .btn.primary{background:var(--accent-glow);border-color:var(--accent-soft);color:var(--ink);}
+  .btn.ember{border-color:#5a3c25;color:var(--ember);}
+  .btn.ghost{background:none;border-color:var(--line-soft);color:var(--ink-dim);}
+  .btn.block{width:100%;padding:13px;font-size:13px;letter-spacing:0.1em;}
+  .btn.sm{padding:6px 10px;font-size:11px;}
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+
+  /* ---- forms ---- */
+  label.field{display:block;margin-bottom:14px;}
+  label.field .lab{font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-faint);display:block;margin-bottom:6px;}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;background:var(--bg-soft);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:11px 12px;font-family:var(--mono);font-size:14px;
+  }
+  textarea{resize:vertical;min-height:60px;}
+  input:focus,select,textarea:focus{outline:none;border-color:var(--accent-soft);}
+  select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%239a9082' fill='none' stroke-width='1.4'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .tone-field .scale{display:flex;justify-content:space-between;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px;}
+  input[type=range]{width:100%;-webkit-appearance:none;appearance:none;background:none;height:24px;}
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:5px;background:linear-gradient(90deg,#5b7a6e,#7a5a44);border:1px solid var(--line);}
+  input[type=range]::-moz-range-track{height:6px;border-radius:5px;background:linear-gradient(90deg,#5b7a6e,#7a5a44);border:1px solid var(--line);}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--ink);border:2px solid var(--bg);margin-top:-7px;}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border:2px solid var(--bg);border-radius:50%;background:var(--ink);}
+  .tone-readout{text-align:center;font-size:11px;color:var(--ink-dim);margin-top:4px;letter-spacing:0.06em;}
+  .status-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .status-seg button{
+    border:1px solid var(--line);background:var(--bg-soft);color:var(--ink-dim);
+    border-radius:9px;padding:11px 6px;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;
+  }
+  .status-seg button.on{border-color:var(--accent-soft);color:var(--ink);background:var(--accent-glow);}
+  .check{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--ink-dim);cursor:pointer;}
+  .check input{width:16px;height:16px;accent-color:var(--accent);}
+
+  /* ---- bottom nav ---- */
+  nav.tabs{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    display:flex;justify-content:center;gap:4px;
+    padding:8px 8px calc(8px + var(--safe-b));
+    background:linear-gradient(transparent, var(--bg) 28%);
+  }
+  nav.tabs .inner{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:4px;max-width:var(--maxw);width:100%;}
+  nav.tabs button{
+    flex:1;background:none;border:none;color:var(--ink-faint);
+    border-radius:10px;padding:9px 4px 7px;display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-size:9px;letter-spacing:0.14em;text-transform:uppercase;
+  }
+  nav.tabs button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  nav.tabs button.on{color:var(--ink);background:var(--bg-soft);}
+  nav.tabs button.on svg{stroke:var(--accent);}
+
+  /* ---- System notifications ---- */
+  #notifs{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 12px 0;pointer-events:none;}
+  .sysbox{
+    pointer-events:auto;width:100%;max-width:420px;
+    background:linear-gradient(180deg, rgba(22,28,33,0.96), rgba(15,18,21,0.96));
+    border:1px solid var(--accent-soft);
+    border-radius:12px;padding:13px 15px;
+    box-shadow:0 0 0 1px rgba(127,167,196,0.08), 0 14px 40px rgba(0,0,0,0.5), inset 0 0 30px var(--accent-glow);
+    animation:slidein .35s cubic-bezier(.2,.9,.2,1);
+    position:relative;overflow:hidden;
+  }
+  .sysbox::before{content:"";position:absolute;inset:0 auto 0 0;width:3px;background:var(--accent);opacity:.8;}
+  .sysbox .head{font-size:9px;letter-spacing:0.32em;text-transform:uppercase;color:var(--accent);margin-bottom:5px;}
+  .sysbox .title{font-family:var(--disp);font-size:18px;font-weight:600;line-height:1.1;color:var(--ink);}
+  .sysbox .title b{color:var(--ink);}
+  .sysbox .lines{font-size:12px;color:var(--ink-dim);margin-top:5px;}
+  .sysbox .lines .xp{color:var(--accent);font-weight:600;}
+  .sysbox.ember{border-color:#7a4f2f;}
+  .sysbox.ember::before,.sysbox.ember .head{color:var(--ember);}
+  .sysbox.ember{box-shadow:0 0 0 1px rgba(199,120,63,0.08),0 14px 40px rgba(0,0,0,0.5), inset 0 0 30px rgba(199,120,63,0.12);}
+  @keyframes slidein{from{opacity:0;transform:translateY(-16px);}to{opacity:1;transform:none;}}
+  .sysbox.out{animation:slideout .3s ease forwards;}
+  @keyframes slideout{to{opacity:0;transform:translateY(-12px);height:0;padding-top:0;padding-bottom:0;margin:0;}}
+
+  /* ---- modal / ceremony ---- */
+  .overlay{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(5,5,4,0.78);backdrop-filter:blur(4px);}
+  .overlay.show{display:flex;animation:fade .3s ease;}
+  .modal{width:100%;max-width:440px;background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:20px;}
+  .modal h3{font-size:22px;margin-bottom:4px;}
+  .modal .sub{font-size:12px;color:var(--ink-dim);margin-bottom:16px;}
+
+  .ceremony{
+    width:100%;max-width:440px;text-align:center;
+    background:radial-gradient(420px 280px at 50% 20%, rgba(127,167,196,0.14), transparent 70%), linear-gradient(180deg,#14130f,#0e0d0b);
+    border:1px solid var(--accent-soft);border-radius:18px;padding:34px 24px 26px;
+    box-shadow:0 0 0 1px rgba(127,167,196,0.08), 0 30px 80px rgba(0,0,0,0.6), inset 0 0 60px var(--accent-glow);
+    animation:rise .6s cubic-bezier(.2,.9,.2,1);
+  }
+  @keyframes rise{from{opacity:0;transform:translateY(20px) scale(.97);}to{opacity:1;transform:none;}}
+  .ceremony .kicker{font-size:10px;letter-spacing:0.4em;text-transform:uppercase;color:var(--accent);}
+  .ceremony .sigil{margin:14px auto 6px;}
+  .ceremony .reveal-class{font-family:var(--disp);font-weight:700;font-size:46px;line-height:1;letter-spacing:0.03em;margin:6px 0;}
+  .ceremony .reveal-blurb{font-size:13px;color:var(--ink-dim);max-width:320px;margin:8px auto 20px;}
+
+  /* ---- shareable card ---- */
+  #cardCanvas{width:100%;max-width:360px;height:auto;border-radius:14px;border:1px solid var(--line);display:block;margin:0 auto;background:var(--bg-soft);}
+  .card-actions{display:flex;gap:10px;margin-top:14px;}
+
+  .hint{font-size:11px;color:var(--ink-faint);letter-spacing:0.02em;margin-top:8px;}
+  .danger{color:#c98a8a;}
+  a.txtlink{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft);}
+  .fineprint{font-size:10px;color:var(--ink-faint);text-align:center;margin:26px 0 8px;letter-spacing:0.08em;}
+</style>
+</head>
+<body>
+
+<div id="notifs"></div>
+
+<header class="top">
+  <div class="brand">
+    <span class="mark">STATUS</span>
+    <span class="sub">Reading System</span>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span class="lvl-pill" id="hdrPill">LVL 1</span>
+    <button class="iconbtn" id="installBtn" style="display:none">INSTALL</button>
+    <button class="iconbtn" id="menuBtn">≡</button>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- ===================== SHEET ===================== -->
+  <section class="view active" id="view-sheet">
+    <div class="panel sheet-hero">
+      <div class="class-tag" id="classTag">CLASS</div>
+      <div class="class-name unclassed" id="className">[UNCLASSED]</div>
+      <div class="class-blurb" id="classBlurb"></div>
+    </div>
+
+    <div class="panel">
+      <div class="level-row">
+        <div class="lvl-num" id="lvlBig">1<small>LEVEL</small></div>
+        <div class="xpbar">
+          <div class="track"><div class="fill" id="xpFill" style="width:0%"></div></div>
+          <div class="meta"><span id="xpInto">0 XP</span><span id="xpNeed">/ 150 to next</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">Axes</div>
+    <div class="panel">
+      <div class="axes-wrap">
+        <div class="radar" id="radarHost"></div>
+        <div class="axes-list" id="axesList"></div>
+      </div>
+    </div>
+
+    <div class="section-label">Record</div>
+    <div class="panel">
+      <div class="stat-grid">
+        <div class="stat"><div class="n" id="stBooks">0</div><div class="l">Slain</div></div>
+        <div class="stat"><div class="n" id="stStreak">0</div><div class="l">Day Streak</div></div>
+        <div class="stat"><div class="n" id="stDnf">0</div><div class="l">Released</div></div>
+      </div>
+    </div>
+
+    <div class="section-label">Titles</div>
+    <div class="panel"><div class="titles" id="titlesHost"></div></div>
+
+    <div class="fineprint" id="firstHint" style="display:none">Log your reading below. The System is watching.</div>
+  </section>
+
+  <!-- ===================== SHELF ===================== -->
+  <section class="view" id="view-shelf">
+    <div class="section-label">The Shelf</div>
+    <div class="filters" id="shelfFilters">
+      <button class="chip active" data-f="all">All</button>
+      <button class="chip" data-f="reading">Reading</button>
+      <button class="chip" data-f="finished">Finished</button>
+      <button class="chip" data-f="abandoned">Released</button>
+    </div>
+    <div id="shelfList"></div>
+  </section>
+
+  <!-- ===================== ADD ===================== -->
+  <section class="view" id="view-add">
+    <div class="section-label">Log a Book</div>
+    <div class="panel">
+      <form id="addForm">
+        <label class="field">
+          <span class="lab">Title</span>
+          <input type="text" id="fTitle" required autocomplete="off" placeholder="e.g. The Blade Itself" />
+        </label>
+        <div class="row2">
+          <label class="field">
+            <span class="lab">Author</span>
+            <input type="text" id="fAuthor" autocomplete="off" placeholder="Joe Abercrombie" />
+          </label>
+          <label class="field">
+            <span class="lab">Series <span style="text-transform:none;letter-spacing:0">(optional)</span></span>
+            <input type="text" id="fSeries" autocomplete="off" placeholder="The First Law" />
+          </label>
+        </div>
+        <div class="row2">
+          <label class="field">
+            <span class="lab">Genre</span>
+            <select id="fGenre"></select>
+          </label>
+          <label class="field">
+            <span class="lab">Pages <span style="text-transform:none;letter-spacing:0">(optional)</span></span>
+            <input type="number" id="fPages" min="0" max="5000" inputmode="numeric" placeholder="—" />
+          </label>
+        </div>
+        <label class="field tone-field">
+          <span class="lab">Tone</span>
+          <div class="scale"><span>Cosy</span><span>Grimdark</span></div>
+          <input type="range" id="fTone" min="1" max="5" step="1" value="3" />
+          <div class="tone-readout" id="toneReadout">Balanced</div>
+        </label>
+        <label class="field">
+          <span class="lab">Status</span>
+          <div class="status-seg" id="fStatusSeg">
+            <button type="button" data-s="reading" class="on">Reading</button>
+            <button type="button" data-s="finished">Finished</button>
+            <button type="button" data-s="abandoned">Released</button>
+          </div>
+        </label>
+        <div id="finishExtra" style="display:none">
+          <label class="field">
+            <span class="lab">A line on it <span style="text-transform:none;letter-spacing:0">(optional — earns XP)</span></span>
+            <textarea id="fNote" placeholder="One honest sentence."></textarea>
+          </label>
+          <label class="check" style="margin-bottom:14px"><input type="checkbox" id="fReread" /> This was a reread</label>
+        </div>
+        <button class="btn primary block" type="submit">Add to Shelf</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== CARD ===================== -->
+  <section class="view" id="view-card">
+    <div class="section-label">Status Card</div>
+    <div class="panel">
+      <canvas id="cardCanvas" width="1080" height="1350"></canvas>
+      <div class="card-actions">
+        <button class="btn primary" id="dlCard" style="flex:1">Download</button>
+        <button class="btn ghost" id="shareCard" style="flex:1">Share</button>
+      </div>
+      <p class="hint">A clean status screen, built to be screenshotted. Updates as you read.</p>
+    </div>
+  </section>
+
+</main>
+
+<nav class="tabs">
+  <div class="inner">
+    <button data-go="sheet" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg>Sheet</button>
+    <button data-go="shelf"><svg viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2V4z"/><path d="M5 17h13M9 4v13"/></svg>Shelf</button>
+    <button data-go="add"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>Log</button>
+    <button data-go="card"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h5M8 14h8"/></svg>Card</button>
+  </div>
+</nav>
+
+<!-- ===================== Finish modal ===================== -->
+<div class="overlay" id="finishOverlay">
+  <div class="modal">
+    <h3 id="finishModalTitle">Slay this book?</h3>
+    <div class="sub" id="finishModalSub"></div>
+    <label class="field tone-field">
+      <span class="lab">Confirm its tone</span>
+      <div class="scale"><span>Cosy</span><span>Grimdark</span></div>
+      <input type="range" id="mTone" min="1" max="5" step="1" value="3" />
+      <div class="tone-readout" id="mToneReadout">Balanced</div>
+    </label>
+    <label class="field">
+      <span class="lab">A line on it <span style="text-transform:none;letter-spacing:0">(optional — +XP)</span></span>
+      <textarea id="mNote" placeholder="One honest sentence."></textarea>
+    </label>
+    <label class="check" style="margin-bottom:16px"><input type="checkbox" id="mReread" /> This was a reread</label>
+    <div style="display:flex;gap:10px">
+      <button class="btn ghost" id="finishCancel" style="flex:1">Cancel</button>
+      <button class="btn primary" id="finishConfirm" style="flex:2">Mark Slain</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Menu modal ===================== -->
+<div class="overlay" id="menuOverlay">
+  <div class="modal">
+    <h3>System</h3>
+    <div class="sub">No accounts. No cloud. Your save lives on this device — back it up.</div>
+    <button class="btn block" id="exportBtn" style="margin-bottom:10px">Export Save (JSON)</button>
+    <button class="btn block ghost" id="importBtn" style="margin-bottom:10px">Import Save</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none" />
+    <button class="btn block ghost danger" id="resetBtn" style="margin-bottom:16px">Reset Everything</button>
+    <button class="btn block" id="menuClose">Close</button>
+    <p class="hint" style="text-align:center;margin-top:14px">STATUS v1 · a Signal9 reading system</p>
+  </div>
+</div>
+
+<!-- ===================== Class ceremony ===================== -->
+<div class="overlay" id="ceremonyOverlay">
+  <div class="ceremony">
+    <div class="kicker">A Path Has Revealed Itself</div>
+    <div class="sigil" id="ceremonySigil"></div>
+    <div class="reveal-class" id="ceremonyClass">CLASS</div>
+    <div class="reveal-blurb" id="ceremonyBlurb"></div>
+    <button class="btn primary block" id="ceremonyAccept">Accept</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   STATUS — core. All gameplay numbers are TUNABLE here.
+   ================================================================ */
+const CONFIG = {
+  // XP economy
+  BASE_FINISH: 300,
+  PAGE_FACTOR: 0.4,
+  ENGAGEMENT_BONUS: 120,
+  BASE_SESSION: 25,
+  REREAD_BONUS: 60,
+  // Leveling curve: XP required to advance FROM level n TO n+1.
+  xpForLevel: (n) => Math.round(150 * Math.pow(n, 1.5)),
+  // Class engine
+  CLASS_THRESHOLD_BOOKS: 5,
+  // Streak
+  STREAK_GRACE_DAYS: 1,      // soft streak: one missed day is forgiven (a "freeze")
+  // Titles
+  GRIMDARK_TONE_MIN: 4,      // tone >= this counts as grimdark-leaning
+  UNFLINCHING_N: 5,
+  SERIES_COMPLETE_N: 3,
+  DISCERNING_N: 3,
+  STEADFAST_N: 7,
+};
+
+const GENRES = [
+  'LitRPG','Progression Fantasy','Grimdark','Epic Fantasy','Dark Fantasy',
+  'Sword & Sorcery','Science Fiction','Space Opera','Cyberpunk','Horror',
+  'Mystery / Thriller','Romance','Cozy Fantasy','Historical','Literary Fiction',
+  'Non-Fiction','Other'
+];
+// Worldbuilding weight (feeds the Lore axis), 0..1.
+const LORE_WEIGHT = {
+  'LitRPG':1,'Progression Fantasy':1,'Epic Fantasy':0.95,'Space Opera':0.95,
+  'Dark Fantasy':0.85,'Grimdark':0.85,'Cyberpunk':0.85,'Sword & Sorcery':0.8,
+  'Science Fiction':0.9,'Cozy Fantasy':0.6,'Historical':0.5,'Horror':0.45,
+  'Non-Fiction':0.35,'Mystery / Thriller':0.25,'Literary Fiction':0.25,'Romance':0.2,'Other':0.35
+};
+const RANGE_TARGET = 7;       // distinct genres that reads as "fully ranged"
+
+const AXES = ['depth','range','momentum','tone','lore'];
+const AXIS_LABEL = {depth:'Depth',range:'Range',momentum:'Momentum',tone:'Tone',lore:'Lore'};
+
+const TONE_WORDS = ['Cosy','Gentle','Balanced','Dark','Grimdark'];
+
+/* ---- Class taxonomy (data-driven; extensible) -----------------
+   Each class scores the reader's context; highest qualifying score wins.
+   ctx = { depth,range,momentum,tone,lore (0..100), finished, abandoned,
+           topAuthor, topSeries, spread } */
+const CLASSES = [
+  { id:'revenant', name:'Revenant',
+    blurb:'You walk willingly through the dark and linger there. The grim does not repel you — it holds you.',
+    score:(c)=> (c.tone>=62 && c.depth>=52) ? c.tone*0.7 + c.depth*0.6 : 0 },
+  { id:'devourer', name:'Devourer',
+    blurb:'You finish what you start, and you start often. Books fall before you in numbers.',
+    score:(c)=> (c.momentum>=58 && c.finished>=8) ? c.momentum*0.8 + c.finished*1.5 : 0 },
+  { id:'wanderer', name:'Wanderer',
+    blurb:'No single country holds you. You range wide and keep moving, restless and well-travelled.',
+    score:(c)=> (c.range>=58 && c.momentum>=52) ? c.range*0.7 + c.momentum*0.55 : 0 },
+  { id:'loremaster', name:'Loremaster',
+    blurb:'You go deep, not wide. One world, known to its bones, is worth a hundred half-seen ones.',
+    score:(c)=> (c.depth>=58 && c.range<=46) ? c.depth*0.8 + (100-c.range)*0.45 : 0 },
+  { id:'worldwalker', name:'Worldwalker',
+    blurb:'You are drawn to invented worlds — their systems, maps and histories. Reality is too small.',
+    score:(c)=> (c.lore>=64) ? c.lore*0.85 + c.range*0.2 : 0 },
+  { id:'ascetic', name:'Ascetic',
+    blurb:'You read little and slowly, and you taste every page. Restraint is its own discipline.',
+    score:(c)=> (c.depth>=52 && c.finished<=7) ? c.depth*0.7 + (8-c.finished)*8 : 0 },
+  { id:'polymath', name:'Polymath',
+    blurb:'You refuse to specialise. Every axis answers when called — a reader without a single weakness.',
+    score:(c)=> (c.spread<=22 && Math.min(c.depth,c.range,c.momentum,c.lore)>=42) ? 70 - c.spread + Math.min(c.depth,c.range,c.momentum,c.lore)*0.3 : 0 },
+];
+function classById(id){ return CLASSES.find(c=>c.id===id) || null; }
+
+/* ---- Titles (data-driven; extensible) ---- */
+const TITLES = [
+  { id:'unflinching', name:'The Unflinching', desc:'Slay '+CONFIG.UNFLINCHING_N+' grimdark-leaning books',
+    earned:(c)=> c.grimdarkFinished >= CONFIG.UNFLINCHING_N },
+  { id:'completionist', name:'Completionist', desc:'Finish a full series ('+CONFIG.SERIES_COMPLETE_N+'+ books)',
+    earned:(c)=> c.topSeriesFinished >= CONFIG.SERIES_COMPLETE_N },
+  { id:'returning', name:'Returning Reader', desc:'Read 2+ books by one author',
+    earned:(c)=> c.topAuthorFinished >= 2 },
+  { id:'discerning', name:'Discerning', desc:'Release '+CONFIG.DISCERNING_N+' books (honesty is strength)',
+    earned:(c)=> c.abandoned >= CONFIG.DISCERNING_N },
+  { id:'steadfast', name:'Steadfast', desc:'Hold a '+CONFIG.STEADFAST_N+'-day streak',
+    earned:(c)=> c.streak >= CONFIG.STEADFAST_N },
+];
+
+/* ================================================================
+   Persistence — localStorage only. The save holds only RAW inputs;
+   everything else (level, axes, class, titles, streak) is derived.
+   ================================================================ */
+const STORE_KEY = 'status.save.v1';
+let SAVE = null;
+
+function freshSave(){
+  return {
+    v:1,
+    createdAt: Date.now(),
+    books: [],      // {id,title,author,series,genre,tone,pages,status,note,reread,addedAt,finishedAt}
+    sessions: [],   // {id,bookId,at}
+    meta: {
+      seenLevel: 1,
+      seenTitles: [],
+      classRevealed: false,
+      seenClass: null,
+    }
+  };
+}
+function loadSave(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return freshSave();
+    const s = JSON.parse(raw);
+    if(!s || typeof s!=='object' || !Array.isArray(s.books)) return freshSave();
+    s.sessions = s.sessions || [];
+    s.meta = Object.assign({seenLevel:1,seenTitles:[],classRevealed:false,seenClass:null}, s.meta||{});
+    return s;
+  }catch(e){ console.warn('load failed', e); return freshSave(); }
+}
+function persist(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(SAVE)); }
+  catch(e){ console.error('save failed', e); }
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const dayKey = (ts) => { const d=new Date(ts); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); };
+
+/* ================================================================
+   Derivation — pure functions of SAVE. Deterministic & idempotent.
+   ================================================================ */
+function finishXpOf(b){
+  return CONFIG.BASE_FINISH
+    + Math.round((b.pages||0) * CONFIG.PAGE_FACTOR)
+    + (b.note && b.note.trim() ? CONFIG.ENGAGEMENT_BONUS : 0)
+    + (b.reread ? CONFIG.REREAD_BONUS : 0);
+}
+function totalXp(){
+  let xp = 0;
+  for(const b of SAVE.books) if(b.status==='finished') xp += finishXpOf(b);
+  xp += SAVE.sessions.length * CONFIG.BASE_SESSION;
+  return xp;
+}
+function levelFromXp(xp){
+  let lvl=1, rem=xp;
+  while(rem >= CONFIG.xpForLevel(lvl)){ rem -= CONFIG.xpForLevel(lvl); lvl++; if(lvl>999) break; }
+  return { level:lvl, into:rem, need:CONFIG.xpForLevel(lvl) };
+}
+
+function computeStreak(){
+  const days = new Set();
+  for(const s of SAVE.sessions) days.add(dayKey(s.at));
+  for(const b of SAVE.books) if(b.status==='finished' && b.finishedAt) days.add(dayKey(b.finishedAt));
+  if(days.size===0) return 0;
+  let streak=0, grace=CONFIG.STREAK_GRACE_DAYS;
+  const cur = new Date(); cur.setHours(0,0,0,0);
+  // Allow today to be empty without breaking (you may not have read yet today).
+  let first = true;
+  while(true){
+    const k = cur.getFullYear()+'-'+(cur.getMonth()+1)+'-'+cur.getDate();
+    if(days.has(k)){ streak++; }
+    else if(first){ /* today empty — fine, keep looking back */ }
+    else if(grace>0){ grace--; }
+    else break;
+    first=false;
+    cur.setDate(cur.getDate()-1);
+    if(streak>3650) break;
+  }
+  return streak;
+}
+
+function computeContext(){
+  const finished = SAVE.books.filter(b=>b.status==='finished');
+  const abandoned = SAVE.books.filter(b=>b.status==='abandoned');
+  const reading = SAVE.books.filter(b=>b.status==='reading');
+  const nF = finished.length;
+
+  // Tone — running average of cosy↔grimdark across finished books, mapped 0..100.
+  let toneAvg = 3;
+  if(nF) toneAvg = finished.reduce((s,b)=>s+(b.tone||3),0)/nF;
+  const tone = nF ? ((toneAvg-1)/4)*100 : 50;
+
+  // Range — distinct genres among finished, scaled to a target spread.
+  const genreSet = new Set(finished.map(b=>b.genre));
+  const range = Math.min(100, (genreSet.size / RANGE_TARGET) * 100);
+
+  // Lore — average worldbuilding weight of finished reads.
+  let lore = 0;
+  if(nF) lore = (finished.reduce((s,b)=>s+(LORE_WEIGHT[b.genre]||0.35),0)/nF) * 100;
+
+  // Loyalty — largest cluster sharing an author or a series.
+  const byAuthor = {}, bySeries = {};
+  for(const b of finished){
+    const a=(b.author||'').trim().toLowerCase(); if(a) byAuthor[a]=(byAuthor[a]||0)+1;
+    const s=(b.series||'').trim().toLowerCase(); if(s) bySeries[s]=(bySeries[s]||0)+1;
+  }
+  const topAuthorFinished = Math.max(0, ...Object.values(byAuthor), 0);
+  const topSeriesFinished = Math.max(0, ...Object.values(bySeries), 0);
+  const loyaltyCount = Math.max(topAuthorFinished, topSeriesFinished);
+  const loyalty = nF ? Math.min(1, (loyaltyCount-1) / Math.max(1, Math.min(nF-1,5))) : 0; // 0..1, saturates ~6 in a cluster
+
+  // Depth — notes + reread savouring + loyalty.
+  const noteRatio = nF ? finished.filter(b=>b.note && b.note.trim()).length / nF : 0;
+  const rereadRatio = nF ? finished.filter(b=>b.reread).length / nF : 0;
+  const depth = Math.min(100, (noteRatio*0.4 + loyalty*0.4 + rereadRatio*0.2) * 100 * 1.05);
+
+  // Momentum — finish discipline + streak + recent activity.
+  const totalAttempts = nF + abandoned.length + reading.length;
+  const finishRate = totalAttempts ? nF/totalAttempts : 0;
+  const streak = computeStreak();
+  const streakFactor = Math.min(1, streak/14);
+  const cutoff = Date.now() - 14*864e5;
+  const recentFin = finished.filter(b=>b.finishedAt && b.finishedAt>=cutoff).length;
+  const recentSess = SAVE.sessions.filter(s=>s.at>=cutoff).length;
+  const recentFactor = Math.min(1, (recentFin*0.6 + recentSess*0.12));
+  const momentum = Math.min(100, (finishRate*0.4 + streakFactor*0.35 + recentFactor*0.25) * 100);
+
+  const axes = {
+    depth:Math.round(depth), range:Math.round(range), momentum:Math.round(momentum),
+    tone:Math.round(tone), lore:Math.round(lore)
+  };
+
+  // Spread for Polymath: deviation of the four magnitude axes (tone is identity, not magnitude).
+  const mag = [axes.depth, axes.range, axes.momentum, axes.lore];
+  const mean = mag.reduce((a,b)=>a+b,0)/mag.length;
+  const spread = Math.round(Math.sqrt(mag.reduce((a,b)=>a+(b-mean)*(b-mean),0)/mag.length));
+
+  const grimdarkFinished = finished.filter(b=>(b.tone||3) >= CONFIG.GRIMDARK_TONE_MIN).length;
+
+  const ctx = Object.assign({}, axes, {
+    finished:nF, abandoned:abandoned.length, reading:reading.length,
+    streak, toneAvg, spread,
+    topAuthorFinished, topSeriesFinished, grimdarkFinished
+  });
+  return ctx;
+}
+
+function evaluateClass(ctx){
+  if(ctx.finished < CONFIG.CLASS_THRESHOLD_BOOKS) return null;
+  let best=null, bestScore=0;
+  for(const c of CLASSES){
+    const s = c.score(ctx);
+    if(s>bestScore){ bestScore=s; best=c; }
+  }
+  return best ? best.id : 'polymath'; // qualified by threshold, default to Polymath
+}
+
+function earnedTitles(ctx){
+  return TITLES.filter(t=>t.earned(ctx)).map(t=>t.id);
+}
+
+function derive(){
+  const ctx = computeContext();
+  const xp = totalXp();
+  const lvl = levelFromXp(xp);
+  const classId = evaluateClass(ctx);
+  const titles = earnedTitles(ctx);
+  return { ctx, xp, lvl, classId, titles };
+}
+
+/* ================================================================
+   Apply a change → recompute → diff vs "seen" → fire System notices.
+   ================================================================ */
+function applyChange(mutator, action){
+  const before = derive();
+  mutator();
+  const after = derive();
+
+  // 1) Action-specific headline (finish / abandon / session).
+  if(action){
+    if(action.type==='finish'){
+      notify({
+        kind:'ember', head:'Encounter Resolved',
+        title:'You have slain <b>'+esc(action.title)+'</b>.',
+        lines:'<span class="xp">+'+action.xp+' XP</span>' + (action.note? ' · a mark left in the margin' : '')
+      });
+    } else if(action.type==='abandon'){
+      notify({
+        kind:'system', head:'Released',
+        title:'You set down <b>'+esc(action.title)+'</b>.',
+        lines:'No penalty. Discernment noted — a reader knows when to walk away.'
+      });
+    } else if(action.type==='session'){
+      notify({
+        kind:'system', head:'Session Logged',
+        title:'Progress made'+(action.title? ' in <b>'+esc(action.title)+'</b>':'')+'.',
+        lines:'<span class="xp">+'+CONFIG.BASE_SESSION+' XP</span>'
+      });
+    } else if(action.type==='added'){
+      notify({ kind:'system', head:'Added to Shelf', title:'<b>'+esc(action.title)+'</b> enters your tale.',
+        lines:'The System acknowledges it.' });
+    }
+  }
+
+  // 2) Level ups.
+  if(after.lvl.level > SAVE.meta.seenLevel){
+    notify({ kind:'system', head:'Level Up', title:'You are now Level '+after.lvl.level+'.',
+      lines:'The work compounds.' });
+    SAVE.meta.seenLevel = after.lvl.level;
+  } else if(after.lvl.level < SAVE.meta.seenLevel){
+    SAVE.meta.seenLevel = after.lvl.level; // stay consistent after edits/imports
+  }
+
+  // 3) New titles.
+  const known = new Set(SAVE.meta.seenTitles);
+  for(const tid of after.titles){
+    if(!known.has(tid)){
+      const t = TITLES.find(x=>x.id===tid);
+      notify({ kind:'system', head:'Title Earned', title:t.name, lines:t.desc });
+    }
+  }
+  SAVE.meta.seenTitles = after.titles.slice();
+
+  // 4) Class reveal / shift.
+  let ceremony = null;
+  if(after.classId){
+    if(!SAVE.meta.classRevealed){
+      SAVE.meta.classRevealed = true;
+      SAVE.meta.seenClass = after.classId;
+      ceremony = after.classId;
+    } else if(after.classId !== SAVE.meta.seenClass){
+      const c = classById(after.classId);
+      notify({ kind:'system', head:'Your Path Has Changed', title:'You are now a '+c.name+'.',
+        lines:'What you read has reshaped what you are.' });
+      SAVE.meta.seenClass = after.classId;
+    }
+  }
+
+  persist();
+  render();
+  if(ceremony) setTimeout(()=>showCeremony(ceremony), 350);
+}
+
+/* ================================================================
+   System notifications
+   ================================================================ */
+let notifTimer = [];
+function notify({head, title, lines, kind}){
+  const host = document.getElementById('notifs');
+  const box = document.createElement('div');
+  box.className = 'sysbox ' + (kind==='ember'?'ember':'');
+  box.innerHTML =
+    '<div class="head">'+esc(head||'System')+'</div>'+
+    '<div class="title">'+title+'</div>'+
+    (lines? '<div class="lines">'+lines+'</div>' : '');
+  host.appendChild(box);
+  const dismiss = ()=>{ if(box.classList.contains('out'))return; box.classList.add('out'); setTimeout(()=>box.remove(),300); };
+  box.addEventListener('click', dismiss);
+  const t = setTimeout(dismiss, kind==='ember'?5200:4200);
+  notifTimer.push(t);
+  // keep the stack reasonable
+  while(host.children.length>4) host.firstChild.remove();
+}
+
+/* ================================================================
+   Rendering
+   ================================================================ */
+function render(){
+  const d = derive();
+  renderSheet(d);
+  renderShelf();
+  renderCardLater();
+  document.getElementById('hdrPill').textContent =
+    (d.classId ? classById(d.classId).name.toUpperCase()+' · L'+d.lvl.level : 'LVL '+d.lvl.level);
+}
+
+function renderSheet(d){
+  const cName = document.getElementById('className');
+  const cTag = document.getElementById('classTag');
+  const cBlurb = document.getElementById('classBlurb');
+  if(d.classId){
+    const c = classById(d.classId);
+    cName.textContent = c.name;
+    cName.classList.remove('unclassed');
+    cTag.textContent = 'CLASS';
+    cBlurb.textContent = c.blurb;
+  } else {
+    cName.textContent = '[UNCLASSED]';
+    cName.classList.add('unclassed');
+    cTag.textContent = 'YOUR PATH IS NOT YET LEGIBLE';
+    const need = CONFIG.CLASS_THRESHOLD_BOOKS - d.ctx.finished;
+    cBlurb.textContent = need>0
+      ? 'Slay '+need+' more book'+(need===1?'':'s')+' and the System will name what you are.'
+      : 'Keep reading. Your shape is nearly clear.';
+  }
+
+  document.getElementById('lvlBig').innerHTML = d.lvl.level + '<small>LEVEL</small>';
+  const pct = d.lvl.need ? Math.min(100, (d.lvl.into/d.lvl.need)*100) : 0;
+  document.getElementById('xpFill').style.width = pct.toFixed(1)+'%';
+  document.getElementById('xpInto').textContent = d.lvl.into + ' XP';
+  document.getElementById('xpNeed').textContent = '/ '+d.lvl.need+' to next';
+
+  // axes
+  const list = document.getElementById('axesList');
+  list.innerHTML = '';
+  for(const ax of AXES){
+    const v = d.ctx[ax];
+    const valTxt = ax==='tone' ? TONE_WORDS[Math.max(0,Math.min(4,Math.round((v/100)*4)))] : v;
+    const el = document.createElement('div');
+    el.className='axis';
+    el.innerHTML = '<span class="name">'+AXIS_LABEL[ax]+'</span>'+
+      '<span class="bar"><i style="width:'+v+'%"></i></span>'+
+      '<span class="val">'+valTxt+'</span>';
+    list.appendChild(el);
+  }
+  document.getElementById('radarHost').innerHTML = radarSVG(d.ctx, 150);
+
+  // stats
+  document.getElementById('stBooks').textContent = d.ctx.finished;
+  document.getElementById('stStreak').textContent = d.ctx.streak;
+  document.getElementById('stDnf').textContent = d.ctx.abandoned;
+
+  // titles
+  const th = document.getElementById('titlesHost');
+  th.innerHTML='';
+  const earned = new Set(d.titles);
+  let any=false;
+  for(const t of TITLES){
+    const has = earned.has(t.id);
+    if(has) any=true;
+    const chip=document.createElement('div');
+    chip.className='title-chip'+(has?'':' locked');
+    chip.innerHTML = esc(t.name)+'<span class="d">'+esc(t.desc)+'</span>';
+    th.appendChild(chip);
+  }
+  document.getElementById('firstHint').style.display = (SAVE.books.length===0)?'block':'none';
+}
+
+// SVG pentagon radar for the five axes.
+function radarSVG(ctx, size){
+  const cx=size/2, cy=size/2, R=size/2-14;
+  const pts = AXES.map((ax,i)=>{
+    const ang = -Math.PI/2 + i*(2*Math.PI/5);
+    const r = R * (ctx[ax]/100);
+    return [cx+Math.cos(ang)*r, cy+Math.sin(ang)*r];
+  });
+  const ring = (k)=> AXES.map((_,i)=>{
+    const ang=-Math.PI/2+i*(2*Math.PI/5);
+    return (cx+Math.cos(ang)*R*k).toFixed(1)+','+(cy+Math.sin(ang)*R*k).toFixed(1);
+  }).join(' ');
+  const spokes = AXES.map((_,i)=>{
+    const ang=-Math.PI/2+i*(2*Math.PI/5);
+    return '<line x1="'+cx+'" y1="'+cy+'" x2="'+(cx+Math.cos(ang)*R).toFixed(1)+'" y2="'+(cy+Math.sin(ang)*R).toFixed(1)+'" stroke="#2a261f" stroke-width="1"/>';
+  }).join('');
+  const poly = pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+
+    '<polygon points="'+ring(1)+'" fill="none" stroke="#221f19" stroke-width="1"/>'+
+    '<polygon points="'+ring(0.66)+'" fill="none" stroke="#221f19" stroke-width="1"/>'+
+    '<polygon points="'+ring(0.33)+'" fill="none" stroke="#221f19" stroke-width="1"/>'+
+    spokes+
+    '<polygon points="'+poly+'" fill="rgba(127,167,196,0.18)" stroke="#7fa7c4" stroke-width="1.5" stroke-linejoin="round"/>'+
+    pts.map(p=>'<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.4" fill="#7fa7c4"/>').join('')+
+    '</svg>';
+}
+
+/* ---- Shelf ---- */
+let shelfFilter='all';
+function renderShelf(){
+  const host = document.getElementById('shelfList');
+  let books = SAVE.books.slice().sort((a,b)=>(b.addedAt||0)-(a.addedAt||0));
+  if(shelfFilter!=='all') books = books.filter(b=>b.status===shelfFilter);
+  if(books.length===0){
+    host.innerHTML = '<div class="empty"><div class="big">'+(SAVE.books.length===0?'EMPTY SHELF':'NOTHING HERE')+'</div>'+
+      (SAVE.books.length===0?'Log your first book to begin. The System awaits its first kill.':'No books with this status yet.')+'</div>';
+    return;
+  }
+  host.innerHTML='';
+  for(const b of books){
+    const el=document.createElement('div');
+    el.className='book';
+    const statusLabel = b.status==='abandoned'?'released':b.status;
+    let acts='';
+    if(b.status==='reading'){
+      acts = '<button class="btn sm primary" data-act="session" data-id="'+b.id+'">Log session</button>'+
+             '<button class="btn sm ember" data-act="finish" data-id="'+b.id+'">Slay</button>'+
+             '<button class="btn sm ghost" data-act="abandon" data-id="'+b.id+'">Release</button>';
+    } else if(b.status==='finished'){
+      acts = '<button class="btn sm ghost" data-act="session" data-id="'+b.id+'">Log reread session</button>';
+    } else {
+      acts = '<button class="btn sm ghost" data-act="resume" data-id="'+b.id+'">Pick back up</button>';
+    }
+    acts += '<button class="btn sm ghost" data-act="delete" data-id="'+b.id+'">Remove</button>';
+    el.innerHTML =
+      '<div class="spine" style="background:'+spineColor(b)+'"></div>'+
+      '<div class="body">'+
+        '<div class="t">'+esc(b.title)+'</div>'+
+        (b.author?'<div class="a">'+esc(b.author)+(b.series?' · '+esc(b.series):'')+'</div>':'')+
+        '<div class="meta">'+
+          '<span class="tag status '+b.status+'">'+statusLabel+'</span>'+
+          '<span class="tag">'+esc(b.genre)+'</span>'+
+          '<span class="tag">'+TONE_WORDS[(b.tone||3)-1]+'</span>'+
+          (b.pages?'<span class="tag">'+b.pages+'p</span>':'')+
+          (b.reread?'<span class="tag">reread</span>':'')+
+        '</div>'+
+        (b.note?'<div class="note">“'+esc(b.note)+'”</div>':'')+
+        '<div class="acts">'+acts+'</div>'+
+      '</div>';
+    host.appendChild(el);
+  }
+}
+function spineColor(b){
+  // Tone-tinted spine: cosy→green-grey, grimdark→ember.
+  const t=(b.tone||3);
+  const mix=(t-1)/4;
+  const c1=[91,122,110], c2=[150,72,48];
+  const r=Math.round(c1[0]+(c2[0]-c1[0])*mix), g=Math.round(c1[1]+(c2[1]-c1[1])*mix), bl=Math.round(c1[2]+(c2[2]-c1[2])*mix);
+  return 'rgb('+r+','+g+','+bl+')'+ (b.status==='abandoned'?';opacity:.35':'');
+}
+
+/* ================================================================
+   Actions
+   ================================================================ */
+function addBook(data){
+  const now=Date.now();
+  const b = {
+    id:uid(), title:data.title, author:data.author, series:data.series,
+    genre:data.genre, tone:data.tone, pages:data.pages,
+    status:data.status, note:data.note||'', reread:!!data.reread,
+    addedAt:now, finishedAt: data.status==='finished'? now : null
+  };
+  applyChange(()=>{ SAVE.books.push(b); }, {
+    type: data.status==='finished' ? 'finish' : (data.status==='abandoned'?'abandon':'added'),
+    title:b.title, xp:finishXpOf(b), note:b.note
+  });
+}
+function logSession(id){
+  const b = SAVE.books.find(x=>x.id===id);
+  applyChange(()=>{ SAVE.sessions.push({id:uid(), bookId:id, at:Date.now()}); },
+    {type:'session', title:b?b.title:''});
+}
+function finishBook(id, {tone, note, reread}){
+  const b = SAVE.books.find(x=>x.id===id); if(!b) return;
+  applyChange(()=>{
+    b.status='finished'; b.finishedAt=Date.now();
+    if(tone) b.tone=tone; b.note=note||''; b.reread=!!reread;
+  }, {type:'finish', title:b.title, xp:finishXpOf(Object.assign({},b,{tone,note,reread})), note});
+}
+function abandonBook(id){
+  const b=SAVE.books.find(x=>x.id===id); if(!b) return;
+  applyChange(()=>{ b.status='abandoned'; b.finishedAt=null; }, {type:'abandon', title:b.title});
+}
+function resumeBook(id){
+  const b=SAVE.books.find(x=>x.id===id); if(!b) return;
+  applyChange(()=>{ b.status='reading'; b.finishedAt=null; }, null);
+}
+function deleteBook(id){
+  applyChange(()=>{
+    SAVE.books = SAVE.books.filter(x=>x.id!==id);
+    SAVE.sessions = SAVE.sessions.filter(s=>s.bookId!==id);
+  }, null);
+}
+
+/* ================================================================
+   UI wiring
+   ================================================================ */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function $(id){ return document.getElementById(id); }
+function go(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $('view-'+view).classList.add('active');
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.toggle('on', b.dataset.go===view));
+  window.scrollTo(0,0);
+  if(view==='card') drawCard();
+}
+
+function initNav(){
+  document.querySelectorAll('nav.tabs button').forEach(b=>{
+    b.addEventListener('click', ()=>go(b.dataset.go));
+  });
+}
+
+// Genre select
+function initForm(){
+  const sel=$('fGenre');
+  GENRES.forEach(g=>{ const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o); });
+  sel.value='LitRPG';
+
+  const toneInput=$('fTone'), toneOut=$('toneReadout');
+  const upd=()=> toneOut.textContent = TONE_WORDS[toneInput.value-1];
+  toneInput.addEventListener('input', upd); upd();
+
+  let curStatus='reading';
+  $('fStatusSeg').addEventListener('click', e=>{
+    const btn=e.target.closest('button'); if(!btn) return;
+    curStatus=btn.dataset.s;
+    document.querySelectorAll('#fStatusSeg button').forEach(x=>x.classList.toggle('on', x===btn));
+    $('finishExtra').style.display = (curStatus==='finished')?'block':'none';
+  });
+
+  $('addForm').addEventListener('submit', e=>{
+    e.preventDefault();
+    const title=$('fTitle').value.trim();
+    if(!title) return;
+    addBook({
+      title, author:$('fAuthor').value.trim(), series:$('fSeries').value.trim(),
+      genre:sel.value, tone:parseInt(toneInput.value,10),
+      pages: $('fPages').value? Math.max(0,parseInt($('fPages').value,10)) : null,
+      status:curStatus,
+      note: curStatus==='finished'? $('fNote').value.trim() : '',
+      reread: curStatus==='finished'? $('fReread').checked : false
+    });
+    e.target.reset(); sel.value='LitRPG'; toneInput.value=3; upd();
+    curStatus='reading';
+    document.querySelectorAll('#fStatusSeg button').forEach(x=>x.classList.toggle('on', x.dataset.s==='reading'));
+    $('finishExtra').style.display='none';
+    go('shelf');
+  });
+}
+
+// Shelf actions (event delegation)
+function initShelf(){
+  $('shelfFilters').addEventListener('click', e=>{
+    const c=e.target.closest('.chip'); if(!c) return;
+    shelfFilter=c.dataset.f;
+    document.querySelectorAll('#shelfFilters .chip').forEach(x=>x.classList.toggle('active', x===c));
+    renderShelf();
+  });
+  $('shelfList').addEventListener('click', e=>{
+    const btn=e.target.closest('button[data-act]'); if(!btn) return;
+    const id=btn.dataset.id, act=btn.dataset.act;
+    if(act==='session') logSession(id);
+    else if(act==='finish') openFinishModal(id);
+    else if(act==='abandon') abandonBook(id);
+    else if(act==='resume') resumeBook(id);
+    else if(act==='delete'){ if(confirm('Remove this book and its sessions from your record?')) deleteBook(id); }
+  });
+}
+
+// Finish modal
+let finishingId=null;
+function openFinishModal(id){
+  const b=SAVE.books.find(x=>x.id===id); if(!b) return;
+  finishingId=id;
+  $('finishModalSub').textContent = b.title + (b.author? ' · '+b.author : '');
+  const mt=$('mTone'); mt.value=b.tone||3;
+  $('mToneReadout').textContent=TONE_WORDS[mt.value-1];
+  $('mNote').value=b.note||'';
+  $('mReread').checked=!!b.reread;
+  $('finishOverlay').classList.add('show');
+}
+function initFinishModal(){
+  const mt=$('mTone');
+  mt.addEventListener('input', ()=>$('mToneReadout').textContent=TONE_WORDS[mt.value-1]);
+  $('finishCancel').addEventListener('click', ()=>$('finishOverlay').classList.remove('show'));
+  $('finishOverlay').addEventListener('click', e=>{ if(e.target.id==='finishOverlay') $('finishOverlay').classList.remove('show'); });
+  $('finishConfirm').addEventListener('click', ()=>{
+    if(!finishingId) return;
+    finishBook(finishingId, {tone:parseInt(mt.value,10), note:$('mNote').value.trim(), reread:$('mReread').checked});
+    $('finishOverlay').classList.remove('show');
+    finishingId=null;
+  });
+}
+
+// Class ceremony
+function showCeremony(classId){
+  const c=classById(classId); if(!c) return;
+  $('ceremonyClass').textContent=c.name;
+  $('ceremonyBlurb').textContent=c.blurb;
+  $('ceremonySigil').innerHTML=radarSVG(derive().ctx, 130);
+  $('ceremonyOverlay').classList.add('show');
+}
+function initCeremony(){
+  $('ceremonyAccept').addEventListener('click', ()=>$('ceremonyOverlay').classList.remove('show'));
+}
+
+// Menu / data
+function initMenu(){
+  $('menuBtn').addEventListener('click', ()=>$('menuOverlay').classList.add('show'));
+  $('menuClose').addEventListener('click', ()=>$('menuOverlay').classList.remove('show'));
+  $('menuOverlay').addEventListener('click', e=>{ if(e.target.id==='menuOverlay') $('menuOverlay').classList.remove('show'); });
+  $('exportBtn').addEventListener('click', exportSave);
+  $('importBtn').addEventListener('click', ()=>$('importFile').click());
+  $('importFile').addEventListener('change', importSave);
+  $('resetBtn').addEventListener('click', ()=>{
+    if(confirm('This erases your entire character and shelf from this device. Export first if unsure. Continue?')){
+      SAVE=freshSave(); persist(); render();
+      $('menuOverlay').classList.remove('show');
+      notify({kind:'system', head:'System Reset', title:'A blank slate.', lines:'You are [UNCLASSED] once more.'});
+    }
+  });
+}
+function exportSave(){
+  const blob=new Blob([JSON.stringify(SAVE,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const stamp=new Date().toISOString().slice(0,10);
+  a.href=url; a.download='status-save-'+stamp+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  notify({kind:'system', head:'Save Exported', title:'Your character is backed up.', lines:'Keep the file safe.'});
+}
+function importSave(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!data || !Array.isArray(data.books)) throw new Error('Not a STATUS save.');
+      data.sessions=data.sessions||[];
+      data.meta=Object.assign({seenLevel:1,seenTitles:[],classRevealed:false,seenClass:null}, data.meta||{});
+      SAVE=data; persist(); render();
+      $('menuOverlay').classList.remove('show');
+      notify({kind:'system', head:'Save Imported', title:'Character restored.', lines:SAVE.books.length+' books on the shelf.'});
+    }catch(err){
+      alert('Could not import: '+err.message);
+    }
+    e.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+/* ================================================================
+   Shareable card — canvas render
+   ================================================================ */
+let cardDirty=true;
+function renderCardLater(){ cardDirty=true; if($('view-card').classList.contains('active')) drawCard(); }
+function drawCard(){
+  const cv=$('cardCanvas'); const ctx2=cv.getContext('2d');
+  const W=cv.width, H=cv.height;
+  const d=derive();
+  const accent='#7fa7c4', ember='#c7783f', ink='#ebe4d4', dim='#9a9082', faint='#6a6358';
+
+  // ground
+  const g=ctx2.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#14130f'); g.addColorStop(1,'#0b0a09');
+  ctx2.fillStyle=g; ctx2.fillRect(0,0,W,H);
+  // soft top glow
+  const rg=ctx2.createRadialGradient(W/2,H*0.22,40,W/2,H*0.22,W*0.8);
+  rg.addColorStop(0,'rgba(127,167,196,0.10)'); rg.addColorStop(1,'rgba(127,167,196,0)');
+  ctx2.fillStyle=rg; ctx2.fillRect(0,0,W,H);
+  // frame
+  ctx2.strokeStyle='#2a261f'; ctx2.lineWidth=3;
+  ctx2.strokeRect(40,40,W-80,H-80);
+
+  const cx=W/2;
+  ctx2.textAlign='center';
+
+  // header
+  ctx2.fillStyle=faint; ctx2.font='600 30px "IBM Plex Mono", monospace';
+  ctx2.fillText('S T A T U S', cx, 130);
+  ctx2.fillStyle=accent; ctx2.font='600 22px "IBM Plex Mono", monospace';
+  ctx2.fillText(d.classId? 'CLASS' : 'UNCLASSED', cx, 188);
+
+  // class name
+  ctx2.fillStyle=ink; ctx2.font='700 96px "Barlow Condensed", sans-serif';
+  ctx2.fillText(d.classId? classById(d.classId).name.toUpperCase() : '[ UNCLASSED ]', cx, 290);
+
+  // level
+  ctx2.fillStyle=dim; ctx2.font='500 34px "IBM Plex Mono", monospace';
+  ctx2.fillText('LEVEL '+d.lvl.level, cx, 348);
+
+  // radar sigil
+  drawRadarCanvas(ctx2, cx, 620, 168, d.ctx, accent);
+
+  // axes labels around handled in drawRadarCanvas
+  // titles
+  let y=858;
+  ctx2.fillStyle=faint; ctx2.font='600 24px "IBM Plex Mono", monospace';
+  ctx2.fillText('TITLES', cx, y); y+=52;
+  const earnedTs = TITLES.filter(t=>d.titles.includes(t.id));
+  ctx2.font='600 40px "Barlow Condensed", sans-serif';
+  if(earnedTs.length===0){
+    ctx2.fillStyle=faint; ctx2.font='400 28px "IBM Plex Mono", monospace';
+    ctx2.fillText('— none yet —', cx, y);
+  } else {
+    ctx2.fillStyle=ink;
+    earnedTs.slice(0,4).forEach(t=>{ ctx2.fillText(t.name, cx, y); y+=50; });
+  }
+
+  // stat line
+  ctx2.fillStyle=dim; ctx2.font='500 30px "IBM Plex Mono", monospace';
+  ctx2.fillText(d.ctx.finished+' slain   ·   '+d.ctx.streak+'-day streak   ·   '+d.ctx.abandoned+' released', cx, H-150);
+
+  // footer mark
+  ctx2.fillStyle=ember; ctx2.beginPath(); ctx2.arc(cx, H-92, 7, 0, Math.PI*2); ctx2.fill();
+  ctx2.fillStyle=faint; ctx2.font='500 22px "IBM Plex Mono", monospace';
+  ctx2.fillText('the reading system', cx, H-68);
+
+  cardDirty=false;
+}
+function drawRadarCanvas(ctx2, cx, cy, R, c, accent){
+  const order=AXES;
+  const pt=(i,frac)=>{ const a=-Math.PI/2+i*(2*Math.PI/5); return [cx+Math.cos(a)*R*frac, cy+Math.sin(a)*R*frac]; };
+  // rings
+  ctx2.strokeStyle='#221f19'; ctx2.lineWidth=2;
+  [1,0.66,0.33].forEach(k=>{
+    ctx2.beginPath();
+    order.forEach((_,i)=>{ const[x,y]=pt(i,k); i?ctx2.lineTo(x,y):ctx2.moveTo(x,y); });
+    ctx2.closePath(); ctx2.stroke();
+  });
+  // spokes
+  order.forEach((_,i)=>{ const[x,y]=pt(i,1); ctx2.beginPath(); ctx2.moveTo(cx,cy); ctx2.lineTo(x,y); ctx2.stroke(); });
+  // data polygon
+  ctx2.beginPath();
+  order.forEach((ax,i)=>{ const[x,y]=pt(i, Math.max(0.03,c[ax]/100)); i?ctx2.lineTo(x,y):ctx2.moveTo(x,y); });
+  ctx2.closePath();
+  ctx2.fillStyle='rgba(127,167,196,0.18)'; ctx2.fill();
+  ctx2.strokeStyle=accent; ctx2.lineWidth=3; ctx2.stroke();
+  // labels
+  ctx2.fillStyle='#9a9082'; ctx2.font='600 22px "IBM Plex Mono", monospace';
+  order.forEach((ax,i)=>{
+    const[x,y]=pt(i,1.2);
+    ctx2.textAlign = Math.abs(x-cx)<6?'center':(x<cx?'right':'left');
+    ctx2.fillText(AXIS_LABEL[ax].toUpperCase(), x, y+8);
+  });
+  ctx2.textAlign='center';
+}
+function initCard(){
+  $('dlCard').addEventListener('click', ()=>{
+    drawCard();
+    const cv=$('cardCanvas');
+    const a=document.createElement('a');
+    a.download='status-card.png'; a.href=cv.toDataURL('image/png');
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('shareCard').addEventListener('click', async ()=>{
+    drawCard();
+    const cv=$('cardCanvas');
+    try{
+      const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+      const file=new File([blob],'status-card.png',{type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'My STATUS', text:'My reading character.'});
+      } else {
+        const a=document.createElement('a'); a.download='status-card.png'; a.href=cv.toDataURL('image/png');
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+    }catch(e){ /* user cancelled */ }
+  });
+}
+
+/* ================================================================
+   PWA install + service worker
+   ================================================================ */
+let deferredPrompt=null;
+function initPWA(){
+  window.addEventListener('beforeinstallprompt', e=>{
+    e.preventDefault(); deferredPrompt=e;
+    $('installBtn').style.display='inline-block';
+  });
+  $('installBtn').addEventListener('click', async ()=>{
+    if(!deferredPrompt) return;
+    deferredPrompt.prompt(); await deferredPrompt.userChoice;
+    deferredPrompt=null; $('installBtn').style.display='none';
+  });
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  }
+}
+
+/* ================================================================
+   Boot
+   ================================================================ */
+function boot(){
+  SAVE = loadSave();
+  initNav(); initForm(); initShelf(); initFinishModal();
+  initCeremony(); initMenu(); initCard(); initPWA();
+  render();
+  if(SAVE.books.length===0){
+    setTimeout(()=>notify({
+      kind:'system', head:'System Online',
+      title:'Welcome, reader.',
+      lines:'You are <b>[UNCLASSED]</b>. Log what you read — finish '+CONFIG.CLASS_THRESHOLD_BOOKS+' books and the System will name your path.'
+    }), 600);
+  }
+}
+boot();
+</script>
+</body>
+</html>
