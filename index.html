@@ -137,6 +137,23 @@
   .title-chip.locked{border-color:var(--line);color:var(--ink-faint);background:none;}
   .title-chip .d{display:block;font-size:9px;color:var(--ink-faint);letter-spacing:0.02em;margin-top:1px;}
 
+  /* ---- achievements ---- */
+  .ach-head{font-size:11px;color:var(--ink-dim);letter-spacing:0.08em;margin-bottom:13px;}
+  .ach-head b{color:var(--accent);font-weight:600;}
+  .ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .ach{background:var(--bg-soft);border:1px solid var(--line-soft);border-radius:11px;padding:11px 12px;opacity:.62;transition:opacity .2s,border-color .2s;}
+  .ach.on{opacity:1;border-color:var(--accent-soft);background:var(--accent-glow);}
+  .ach-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px;}
+  .ach-name{font-family:var(--disp);font-size:15px;font-weight:600;letter-spacing:0.02em;line-height:1.05;}
+  .ach-xp{font-size:10px;color:var(--accent);letter-spacing:0.04em;white-space:nowrap;}
+  .ach.on .ach-xp{color:var(--good);}
+  .ach-desc{font-size:10.5px;color:var(--ink-dim);margin:4px 0 9px;line-height:1.3;min-height:28px;}
+  .ach-bar{height:5px;border-radius:4px;background:#0b0a09;border:1px solid var(--line-soft);overflow:hidden;}
+  .ach-bar i{display:block;height:100%;background:var(--accent);opacity:.7;transition:width .5s ease;}
+  .ach.on .ach-bar i{background:var(--good);opacity:.9;}
+  .ach-prog{font-size:9px;color:var(--ink-faint);letter-spacing:0.12em;text-transform:uppercase;margin-top:7px;}
+  .ach.on .ach-prog{color:var(--good);}
+
   /* ---- shelf ---- */
   .filters{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;}
   .chip{
@@ -416,6 +433,18 @@
     </div>
   </section>
 
+  <!-- ===================== CODEX (record + achievements) ===================== -->
+  <section class="view" id="view-codex">
+    <div class="section-label">Reading Record</div>
+    <div class="panel"><div class="stat-grid" id="recordStats"></div></div>
+
+    <div class="section-label">Achievements</div>
+    <div class="panel">
+      <div class="ach-head" id="achSummary"></div>
+      <div class="ach-grid" id="achList"></div>
+    </div>
+  </section>
+
 </main>
 
 <nav class="tabs">
@@ -423,6 +452,7 @@
     <button data-go="sheet" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 3v18M4 7.5l8 4.5 8-4.5"/></svg>Sheet</button>
     <button data-go="shelf"><svg viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v13H7a2 2 0 0 1-2-2V4z"/><path d="M5 17h13M9 4v13"/></svg>Shelf</button>
     <button data-go="add"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg>Log</button>
+    <button data-go="codex"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M8.5 13L7 21l5-3 5 3-1.5-8"/></svg>Codex</button>
     <button data-go="card"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h5M8 14h8"/></svg>Card</button>
   </div>
 </nav>
@@ -564,6 +594,39 @@ const TITLES = [
     earned:(c)=> c.streak >= CONFIG.STEADFAST_N },
 ];
 
+/* ---- Achievements (data-driven; extensible) -------------------
+   Distinct from Titles: these are countable MILESTONES with progress
+   bars, and each grants a one-time XP reward on unlock. p(ctx) returns
+   [current, target]; unlocked when current >= target. XP is folded into
+   the derived total, so it stays deterministic across edits/imports. */
+const ACHIEVEMENTS = [
+  { id:'first-blood',   name:'First Blood',      desc:'Finish your first book',                 xp:50,   p:c=>[Math.min(c.finished,1),1] },
+  { id:'shelf-stocked', name:'Shelf Stocked',    desc:'Add 10 books to your shelf',             xp:60,   p:c=>[Math.min(c.booksAdded,10),10] },
+  { id:'bloodied',      name:'Bloodied',         desc:'Finish 10 books',                        xp:150,  p:c=>[Math.min(c.finished,10),10] },
+  { id:'seasoned',      name:'Seasoned',         desc:'Finish 25 books',                        xp:300,  p:c=>[Math.min(c.finished,25),25] },
+  { id:'veteran',       name:'Veteran',          desc:'Finish 50 books',                        xp:600,  p:c=>[Math.min(c.finished,50),50] },
+  { id:'centurion',     name:'Centurion',        desc:'Finish 100 books',                       xp:1200, p:c=>[Math.min(c.finished,100),100] },
+  { id:'tome-slayer',   name:'Tome Slayer',      desc:'Finish a single 600+ page book',         xp:120,  p:c=>[Math.min(c.maxPages,600),600] },
+  { id:'long-haul',     name:'Long Haul',        desc:'Read 5,000 pages',                       xp:300,  p:c=>[Math.min(c.pagesRead,5000),5000] },
+  { id:'great-library', name:'The Great Library',desc:'Read 15,000 pages',                      xp:700,  p:c=>[Math.min(c.pagesRead,15000),15000] },
+  { id:'genre-curious', name:'Genre-Curious',    desc:'Finish books across 3 genres',           xp:100,  p:c=>[Math.min(c.genreCount,3),3] },
+  { id:'cartographer',  name:'Cartographer',     desc:'Finish across 6 genres',                 xp:250,  p:c=>[Math.min(c.genreCount,6),6] },
+  { id:'all-devouring', name:'All-Devouring',    desc:'Finish across 10 genres',                xp:500,  p:c=>[Math.min(c.genreCount,10),10] },
+  { id:'into-the-dark', name:'Into the Dark',    desc:'Finish 10 grimdark-leaning books',       xp:250,  p:c=>[Math.min(c.grimdarkFinished,10),10] },
+  { id:'comfort-reader',name:'Comfort Reader',   desc:'Finish 5 cosy-leaning books',            xp:150,  p:c=>[Math.min(c.cosyFinished,5),5] },
+  { id:'full-spectrum', name:'Full Spectrum',    desc:'Finish a book at every tone, Cosy to Grimdark', xp:200, p:c=>[Math.min(c.distinctTones,5),5] },
+  { id:'annotator',     name:'Annotator',        desc:'Leave a note on 15 finished books',      xp:200,  p:c=>[Math.min(c.notesCount,15),15] },
+  { id:'loyalist',      name:'Loyalist',         desc:'Finish 6 books by a single author',      xp:250,  p:c=>[Math.min(c.topAuthorFinished,6),6] },
+  { id:'relentless',    name:'Relentless',       desc:'Hold a 14-day streak',                   xp:300,  p:c=>[Math.min(c.bestStreak,14),14] },
+  { id:'logbook',       name:'Logbook',          desc:'Log 50 reading sessions',                xp:200,  p:c=>[Math.min(c.sessionsCount,50),50] },
+];
+function computeAchievements(ctx){
+  return ACHIEVEMENTS.map(def=>{
+    const [cur,target]=def.p(ctx);
+    return { def, cur, target, unlocked: cur>=target };
+  });
+}
+
 /* ================================================================
    Persistence — localStorage only. The save holds only RAW inputs;
    everything else (level, axes, class, titles, streak) is derived.
@@ -571,18 +634,16 @@ const TITLES = [
 const STORE_KEY = 'status.save.v1';
 let SAVE = null;
 
+function metaDefaults(){
+  return { seenLevel:1, seenTitles:[], seenAchievements:[], classRevealed:false, seenClass:null };
+}
 function freshSave(){
   return {
     v:1,
     createdAt: Date.now(),
     books: [],      // {id,title,author,series,genre,tone,pages,status,note,reread,addedAt,finishedAt}
     sessions: [],   // {id,bookId,at}
-    meta: {
-      seenLevel: 1,
-      seenTitles: [],
-      classRevealed: false,
-      seenClass: null,
-    }
+    meta: metaDefaults()
   };
 }
 function loadSave(){
@@ -592,7 +653,7 @@ function loadSave(){
     const s = JSON.parse(raw);
     if(!s || typeof s!=='object' || !Array.isArray(s.books)) return freshSave();
     s.sessions = s.sessions || [];
-    s.meta = Object.assign({seenLevel:1,seenTitles:[],classRevealed:false,seenClass:null}, s.meta||{});
+    s.meta = Object.assign(metaDefaults(), s.meta||{});
     return s;
   }catch(e){ console.warn('load failed', e); return freshSave(); }
 }
@@ -612,7 +673,7 @@ function finishXpOf(b){
     + (b.note && b.note.trim() ? CONFIG.ENGAGEMENT_BONUS : 0)
     + (b.reread ? CONFIG.REREAD_BONUS : 0);
 }
-function totalXp(){
+function baseXp(){
   let xp = 0;
   for(const b of SAVE.books) if(b.status==='finished') xp += finishXpOf(b);
   xp += SAVE.sessions.length * CONFIG.BASE_SESSION;
@@ -644,6 +705,23 @@ function computeStreak(){
     if(streak>3650) break;
   }
   return streak;
+}
+
+// Longest consecutive run of active days, ever (no grace). For records/achievements.
+function computeBestStreak(){
+  const keys = new Set();
+  for(const s of SAVE.sessions) keys.add(dayKey(s.at));
+  for(const b of SAVE.books) if(b.status==='finished' && b.finishedAt) keys.add(dayKey(b.finishedAt));
+  if(keys.size===0) return 0;
+  const ts = [...keys].map(k=>{ const [y,m,d]=k.split('-').map(Number); return new Date(y,m-1,d).getTime(); }).sort((a,b)=>a-b);
+  let best=1, run=1;
+  for(let i=1;i<ts.length;i++){
+    const gap = Math.round((ts[i]-ts[i-1])/864e5);
+    if(gap===1) run++;
+    else if(gap>1) run=1;
+    if(run>best) best=run;
+  }
+  return best;
 }
 
 function computeContext(){
@@ -704,10 +782,25 @@ function computeContext(){
 
   const grimdarkFinished = finished.filter(b=>(b.tone||3) >= CONFIG.GRIMDARK_TONE_MIN).length;
 
+  // Extra tallies for records + achievements.
+  const cosyFinished = finished.filter(b=>(b.tone||3) <= 2).length;
+  const distinctTones = new Set(finished.map(b=>b.tone||3)).size;
+  const pagesRead = finished.reduce((s,b)=>s+(b.pages||0),0);
+  const maxPages = finished.reduce((m,b)=>Math.max(m,b.pages||0),0);
+  const notesCount = finished.filter(b=>b.note && b.note.trim()).length;
+  const genreCount = genreSet.size;
+  const sessionsCount = SAVE.sessions.length;
+  const booksAdded = SAVE.books.length;
+  const yr = new Date().getFullYear();
+  const thisYearFinished = finished.filter(b=>b.finishedAt && new Date(b.finishedAt).getFullYear()===yr).length;
+  const bestStreak = computeBestStreak();
+
   const ctx = Object.assign({}, axes, {
     finished:nF, abandoned:abandoned.length, reading:reading.length,
     streak, toneAvg, spread,
-    topAuthorFinished, topSeriesFinished, grimdarkFinished
+    topAuthorFinished, topSeriesFinished, grimdarkFinished,
+    cosyFinished, distinctTones, pagesRead, maxPages, notesCount,
+    genreCount, sessionsCount, booksAdded, thisYearFinished, bestStreak, year:yr
   });
   return ctx;
 }
@@ -728,11 +821,13 @@ function earnedTitles(ctx){
 
 function derive(){
   const ctx = computeContext();
-  const xp = totalXp();
+  const ach = computeAchievements(ctx);
+  const achXp = ach.reduce((s,a)=>s + (a.unlocked ? a.def.xp : 0), 0);
+  const xp = baseXp() + achXp;
   const lvl = levelFromXp(xp);
   const classId = evaluateClass(ctx);
   const titles = earnedTitles(ctx);
-  return { ctx, xp, lvl, classId, titles };
+  return { ctx, xp, lvl, classId, titles, ach, achXp };
 }
 
 /* ================================================================
@@ -769,14 +864,15 @@ function applyChange(mutator, action){
     }
   }
 
-  // 2) Level ups.
-  if(after.lvl.level > SAVE.meta.seenLevel){
-    notify({ kind:'system', head:'Level Up', title:'You are now Level '+after.lvl.level+'.',
-      lines:'The work compounds.' });
-    SAVE.meta.seenLevel = after.lvl.level;
-  } else if(after.lvl.level < SAVE.meta.seenLevel){
-    SAVE.meta.seenLevel = after.lvl.level; // stay consistent after edits/imports
+  // 2) Achievements unlocked.
+  const knownAch = new Set(SAVE.meta.seenAchievements || []);
+  for(const a of after.ach){
+    if(a.unlocked && !knownAch.has(a.def.id)){
+      notify({ kind:'system', head:'Achievement Unlocked', title:a.def.name,
+        lines:esc(a.def.desc)+' · <span class="xp">+'+a.def.xp+' XP</span>' });
+    }
   }
+  SAVE.meta.seenAchievements = after.ach.filter(a=>a.unlocked).map(a=>a.def.id);
 
   // 3) New titles.
   const known = new Set(SAVE.meta.seenTitles);
@@ -788,7 +884,16 @@ function applyChange(mutator, action){
   }
   SAVE.meta.seenTitles = after.titles.slice();
 
-  // 4) Class reveal / shift.
+  // 4) Level ups.
+  if(after.lvl.level > SAVE.meta.seenLevel){
+    notify({ kind:'system', head:'Level Up', title:'You are now Level '+after.lvl.level+'.',
+      lines:'The work compounds.' });
+    SAVE.meta.seenLevel = after.lvl.level;
+  } else if(after.lvl.level < SAVE.meta.seenLevel){
+    SAVE.meta.seenLevel = after.lvl.level; // stay consistent after edits/imports
+  }
+
+  // 5) Class reveal / shift.
   let ceremony = null;
   if(after.classId){
     if(!SAVE.meta.classRevealed){
@@ -826,7 +931,7 @@ function notify({head, title, lines, kind}){
   const t = setTimeout(dismiss, kind==='ember'?5200:4200);
   notifTimer.push(t);
   // keep the stack reasonable
-  while(host.children.length>4) host.firstChild.remove();
+  while(host.children.length>6) host.firstChild.remove();
 }
 
 /* ================================================================
@@ -836,6 +941,7 @@ function render(){
   const d = derive();
   renderSheet(d);
   renderShelf();
+  renderCodex(d);
   renderCardLater();
   document.getElementById('hdrPill').textContent =
     (d.classId ? classById(d.classId).name.toUpperCase()+' · L'+d.lvl.level : 'LVL '+d.lvl.level);
@@ -901,6 +1007,49 @@ function renderSheet(d){
     th.appendChild(chip);
   }
   document.getElementById('firstHint').style.display = (SAVE.books.length===0)?'block':'none';
+}
+
+function renderCodex(d){
+  const ctx = d.ctx;
+  const unlocked = d.ach.filter(a=>a.unlocked).length;
+
+  const stats = [
+    ['Books Slain', ctx.finished],
+    ['Pages Read', ctx.pagesRead.toLocaleString()],
+    ['Genres', ctx.genreCount],
+    ['Sessions', ctx.sessionsCount],
+    ['Best Streak', ctx.bestStreak],
+    ['Slain in '+ctx.year, ctx.thisYearFinished],
+    ['Notes', ctx.notesCount],
+    ['Released', ctx.abandoned],
+    ['Trophies', unlocked+'/'+d.ach.length],
+  ];
+  const sg = $('recordStats'); sg.innerHTML='';
+  for(const [l,n] of stats){
+    const e=document.createElement('div'); e.className='stat';
+    e.innerHTML = '<div class="n">'+n+'</div><div class="l">'+esc(l)+'</div>';
+    sg.appendChild(e);
+  }
+
+  $('achSummary').innerHTML = '<b>'+unlocked+'</b> of '+d.ach.length+' unlocked · <b>+'+d.achXp.toLocaleString()+'</b> XP earned from achievements';
+
+  // Unlocked first, then nearest-to-complete.
+  const sorted = d.ach.slice().sort((a,b)=>{
+    if(a.unlocked!==b.unlocked) return a.unlocked?-1:1;
+    return (b.cur/b.target)-(a.cur/a.target);
+  });
+  const host = $('achList'); host.innerHTML='';
+  for(const a of sorted){
+    const pct = Math.min(100, (a.cur/a.target)*100);
+    const el=document.createElement('div');
+    el.className = 'ach'+(a.unlocked?' on':'');
+    el.innerHTML =
+      '<div class="ach-top"><span class="ach-name">'+esc(a.def.name)+'</span><span class="ach-xp">+'+a.def.xp+'</span></div>'+
+      '<div class="ach-desc">'+esc(a.def.desc)+'</div>'+
+      '<div class="ach-bar"><i style="width:'+pct+'%"></i></div>'+
+      '<div class="ach-prog">'+(a.unlocked?'✓ Unlocked':a.cur.toLocaleString()+' / '+a.target.toLocaleString())+'</div>';
+    host.appendChild(el);
+  }
 }
 
 // SVG pentagon radar for the five axes.
@@ -1174,7 +1323,7 @@ function importSave(e){
       const data=JSON.parse(reader.result);
       if(!data || !Array.isArray(data.books)) throw new Error('Not a STATUS save.');
       data.sessions=data.sessions||[];
-      data.meta=Object.assign({seenLevel:1,seenTitles:[],classRevealed:false,seenClass:null}, data.meta||{});
+      data.meta=Object.assign(metaDefaults(), data.meta||{});
       SAVE=data; persist(); render();
       $('menuOverlay').classList.remove('show');
       notify({kind:'system', head:'Save Imported', title:'Character restored.', lines:SAVE.books.length+' books on the shelf.'});
@@ -1245,8 +1394,9 @@ function drawCard(){
   }
 
   // stat line
+  const trophies = d.ach.filter(a=>a.unlocked).length;
   ctx2.fillStyle=dim; ctx2.font='500 30px "IBM Plex Mono", monospace';
-  ctx2.fillText(d.ctx.finished+' slain   ·   '+d.ctx.streak+'-day streak   ·   '+d.ctx.abandoned+' released', cx, H-150);
+  ctx2.fillText(d.ctx.finished+' slain   ·   '+d.ctx.streak+'-day streak   ·   '+trophies+(trophies===1?' trophy':' trophies'), cx, H-150);
 
   // footer mark
   ctx2.fillStyle=ember; ctx2.beginPath(); ctx2.arc(cx, H-92, 7, 0, Math.PI*2); ctx2.fill();

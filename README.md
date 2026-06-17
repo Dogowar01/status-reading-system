@@ -50,8 +50,17 @@ deterministically** on load, so imports and edits are always consistent.
 
 All gameplay numbers live in the `CONFIG` object at the top of the `<script>` in `index.html`
 (XP formulas, level curve, class threshold, streak grace, title requirements). The class
-taxonomy (`CLASSES`), titles (`TITLES`), genre list (`GENRES`) and worldbuilding weights
-(`LORE_WEIGHT`) are all data-driven and built to be extended.
+taxonomy (`CLASSES`), titles (`TITLES`), achievements (`ACHIEVEMENTS`), genre list (`GENRES`)
+and worldbuilding weights (`LORE_WEIGHT`) are all data-driven and built to be extended.
+
+### Titles vs. Achievements
+- **Titles** are *identity* badges earned for behavioural patterns (e.g. The Unflinching,
+  Loremaster). They show on the sheet and the shareable card.
+- **Achievements** are countable *milestones* with progress bars, shown in the **Codex** tab.
+  Each grants a one-time XP reward on unlock. Add one by appending to `ACHIEVEMENTS`: give it
+  an `id`, `name`, `desc`, `xp`, and `p:(ctx) => [current, target]`. Unlocked when
+  `current >= target`. XP is folded into the derived total, so it stays consistent on
+  import/edit. To add a new metric, extend the object returned by `computeContext()`.
 
 ### The five axes
 - **Depth** — notes left, rereads, loyalty to one author/series.
