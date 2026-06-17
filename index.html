@@ -624,6 +624,11 @@ const CONFIG = {
   SERIES_COMPLETE_N: 3,
   DISCERNING_N: 3,
   STEADFAST_N: 7,
+  // Class engine — genre specialisation
+  GENRE_DOMINANCE_SHARE: 0.34, // a genre this fraction (or more) of finished books = a "path"
+  GENRE_DOMINANCE_MIN: 3,      // ...and at least this many finished in it
+  LOREMASTER_SERIES: 6,        // saga-devotion this deep transcends genre → Loremaster
+  LOREMASTER_AUTHOR: 7,
 };
 
 const GENRES = [
@@ -655,33 +660,68 @@ const GRIMDARK_TONE_MIN = TONE_MAX - 1;        // top two notches read as grimda
 const COSY_TONE_MAX = 2;                        // bottom two notches read as cosy-leaning
 
 /* ---- Class taxonomy (data-driven; extensible) -----------------
-   Each class scores the reader's context; highest qualifying score wins.
+   Two tiers, resolved in evaluateClass():
+   • GENRE paths — keyed to the reader's dominant genre. Map a genre to a new
+     class by adding a {genre:'…'} entry below; this is what makes the path
+     vary wildly with what someone reads.
+   • GENERALIST paths — behavioural archetypes for eclectic readers with no
+     single dominant genre. These carry a score(ctx); highest wins.
    ctx = { depth,range,momentum,tone,lore (0..100), finished, abandoned,
-           topAuthor, topSeries, spread } */
+           topGenre, topGenreShare, topAuthorFinished, topSeriesFinished, spread } */
 const CLASSES = [
-  { id:'revenant', name:'Revenant',
-    blurb:'You walk willingly through the dark and linger there. The grim does not repel you — it holds you.',
-    score:(c)=> (c.tone>=62 && c.depth>=52) ? c.tone*0.7 + c.depth*0.6 : 0 },
+  // ---------- Genre paths (one per genre; Other has none) ----------
+  { id:'delver',       genre:'LitRPG',             name:'Delver',
+    blurb:'You descend into systems and dungeons. Levels, loot and mechanics are your native tongue.' },
+  { id:'ascendant',    genre:'Progression Fantasy', name:'Ascendant',
+    blurb:'You climb. Power earned rung by rung — and every ceiling is only a dare.' },
+  { id:'revenant',     genre:'Grimdark',           name:'Revenant',
+    blurb:'You walk willingly through the dark and linger there. The grim does not repel you — it holds you.' },
+  { id:'worldwalker',  genre:'Epic Fantasy',       name:'Worldwalker',
+    blurb:'Vast maps, long histories, doomed kings. You live more in invented worlds than this one.' },
+  { id:'nightbound',   genre:'Dark Fantasy',       name:'Nightbound',
+    blurb:'You linger where the light fails and beauty turns to teeth.' },
+  { id:'reaver',       genre:'Sword & Sorcery',    name:'Reaver',
+    blurb:'Blades, ruins and treasure. You like your adventure with the dust still on it.' },
+  { id:'voyager',      genre:'Science Fiction',    name:'Voyager',
+    blurb:'You chase ideas to their edge — futures, machines, and the long dark between stars.' },
+  { id:'starborn',     genre:'Space Opera',        name:'Starborn',
+    blurb:'Fleets, empires and grand sweeps across the galaxy. You think in light-years.' },
+  { id:'netrunner',    genre:'Cyberpunk',          name:'Netrunner',
+    blurb:'Neon, chrome and rot. You read against the grain of the future.' },
+  { id:'sleepless',    genre:'Horror',             name:'Sleepless',
+    blurb:'You go looking for the thing beneath the floorboards — and you keep the light off.' },
+  { id:'inquisitor',   genre:'Mystery / Thriller', name:'Inquisitor',
+    blurb:'Every page is a thread to pull. You read to learn who — and why.' },
+  { id:'devoted',      genre:'Romance',            name:'Devoted',
+    blurb:'You read for the hearts: the longing, the fall, and the earned ending.' },
+  { id:'hearthkeeper', genre:'Cozy Fantasy',       name:'Hearthkeeper',
+    blurb:'Small magics, warm rooms, gentle stakes. You read to be held.' },
+  { id:'chronicler',   genre:'Historical',         name:'Chronicler',
+    blurb:'You walk centuries that already happened. The past is a country you keep returning to.' },
+  { id:'aesthete',     genre:'Literary Fiction',   name:'Aesthete',
+    blurb:'You read for the sentence as much as the story. Form is the feast.' },
+  { id:'sage',         genre:'Non-Fiction',        name:'Sage',
+    blurb:'You read to know what is real. Every book leaves you holding more world.' },
+
+  // ---------- Generalist paths (eclectic readers; behavioural) ----------
+  { id:'wanderer', name:'Wanderer',
+    blurb:'No single country holds you. You range wide and keep moving — restless and well-travelled.',
+    score:(c)=> (c.range>=50) ? c.range*0.8 + c.momentum*0.4 : 0 },
   { id:'devourer', name:'Devourer',
     blurb:'You finish what you start, and you start often. Books fall before you in numbers.',
-    score:(c)=> (c.momentum>=58 && c.finished>=8) ? c.momentum*0.8 + c.finished*1.5 : 0 },
-  { id:'wanderer', name:'Wanderer',
-    blurb:'No single country holds you. You range wide and keep moving, restless and well-travelled.',
-    score:(c)=> (c.range>=58 && c.momentum>=52) ? c.range*0.7 + c.momentum*0.55 : 0 },
-  { id:'loremaster', name:'Loremaster',
-    blurb:'You go deep, not wide. One world, known to its bones, is worth a hundred half-seen ones.',
-    score:(c)=> (c.depth>=58 && c.range<=46) ? c.depth*0.8 + (100-c.range)*0.45 : 0 },
-  { id:'worldwalker', name:'Worldwalker',
-    blurb:'You are drawn to invented worlds — their systems, maps and histories. Reality is too small.',
-    score:(c)=> (c.lore>=64) ? c.lore*0.85 + c.range*0.2 : 0 },
+    score:(c)=> (c.momentum>=55 && c.finished>=8) ? c.momentum*0.7 + c.finished*1.6 : 0 },
   { id:'ascetic', name:'Ascetic',
     blurb:'You read little and slowly, and you taste every page. Restraint is its own discipline.',
-    score:(c)=> (c.depth>=52 && c.finished<=7) ? c.depth*0.7 + (8-c.finished)*8 : 0 },
+    score:(c)=> (c.depth>=45 && c.finished<=7) ? c.depth*0.7 + (8-c.finished)*7 : 0 },
+  { id:'loremaster', name:'Loremaster',
+    blurb:'You go deep, not wide — one author or saga, known to the bone.',
+    score:(c)=> (c.topSeriesFinished>=3 || c.topAuthorFinished>=4) ? 40 + c.depth*0.4 + Math.max(c.topSeriesFinished, c.topAuthorFinished)*5 : 0 },
   { id:'polymath', name:'Polymath',
     blurb:'You refuse to specialise. Every axis answers when called — a reader without a single weakness.',
-    score:(c)=> (c.spread<=22 && Math.min(c.depth,c.range,c.momentum,c.lore)>=42) ? 70 - c.spread + Math.min(c.depth,c.range,c.momentum,c.lore)*0.3 : 0 },
+    score:(c)=> (c.spread<=24 && Math.min(c.depth,c.range,c.momentum,c.lore)>=38) ? 55 - c.spread + Math.min(c.depth,c.range,c.momentum,c.lore)*0.25 : 0 },
 ];
 function classById(id){ return CLASSES.find(c=>c.id===id) || null; }
+function genreClassFor(genre){ return CLASSES.find(c=>c.genre===genre) || null; }
 
 /* ---- Titles (data-driven; extensible) ---- */
 const TITLES = [
@@ -910,24 +950,47 @@ function computeContext(){
   const thisYearFinished = finished.filter(b=>b.finishedAt && new Date(b.finishedAt).getFullYear()===yr).length;
   const bestStreak = computeBestStreak();
 
+  // Dominant genre (drives the genre-specialist class). Iterate GENRES order
+  // so ties resolve deterministically.
+  const genreCounts = {};
+  for(const b of finished){ genreCounts[b.genre] = (genreCounts[b.genre]||0)+1; }
+  let topGenre=null, topGenreCount=0;
+  for(const g of GENRES){ const ct=genreCounts[g]||0; if(ct>topGenreCount){ topGenreCount=ct; topGenre=g; } }
+  const topGenreShare = nF ? topGenreCount/nF : 0;
+
   const ctx = Object.assign({}, axes, {
     finished:nF, abandoned:abandoned.length, reading:reading.length,
     streak, toneAvg, spread,
     topAuthorFinished, topSeriesFinished, grimdarkFinished,
     cosyFinished, distinctTones, pagesRead, maxPages, notesCount,
-    genreCount, sessionsCount, booksAdded, thisYearFinished, bestStreak, year:yr
+    genreCount, sessionsCount, booksAdded, thisYearFinished, bestStreak, year:yr,
+    genreCounts, topGenre, topGenreCount, topGenreShare
   });
   return ctx;
 }
 
 function evaluateClass(ctx){
   if(ctx.finished < CONFIG.CLASS_THRESHOLD_BOOKS) return null;
-  let best=null, bestScore=0;
-  for(const c of CLASSES){
-    const s = c.score(ctx);
-    if(s>bestScore){ bestScore=s; best=c; }
+
+  // 1) Deep devotion to a single saga/author transcends genre.
+  if(ctx.topSeriesFinished >= CONFIG.LOREMASTER_SERIES || ctx.topAuthorFinished >= CONFIG.LOREMASTER_AUTHOR){
+    return 'loremaster';
   }
-  return best ? best.id : 'polymath'; // qualified by threshold, default to Polymath
+
+  // 2) A dominant genre defines the path — the headline of the System.
+  if(ctx.topGenre && ctx.topGenreCount >= CONFIG.GENRE_DOMINANCE_MIN && ctx.topGenreShare >= CONFIG.GENRE_DOMINANCE_SHARE){
+    const gc = genreClassFor(ctx.topGenre);
+    if(gc) return gc.id;
+  }
+
+  // 3) No single genre dominates → a behavioural generalist path.
+  let best='polymath', bestScore=0;
+  for(const c of CLASSES){
+    if(typeof c.score !== 'function') continue;
+    const s = c.score(ctx);
+    if(s>bestScore){ bestScore=s; best=c.id; }
+  }
+  return best;
 }
 
 function earnedTitles(ctx){

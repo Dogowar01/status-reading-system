@@ -55,6 +55,23 @@ All gameplay numbers live in the `CONFIG` object at the top of the `<script>` in
 taxonomy (`CLASSES`), titles (`TITLES`), achievements (`ACHIEVEMENTS`), genre list (`GENRES`)
 and worldbuilding weights (`LORE_WEIGHT`) are all data-driven and built to be extended.
 
+### Classes (the path)
+The revealed class is resolved in two tiers (`evaluateClass`):
+1. **Loyalty override** — devotion to a single saga/author (≥6 in a series or ≥7 by an
+   author) returns **Loremaster**, transcending genre.
+2. **Genre path** — if one genre is the reader's dominant share (≥34% of finished books and
+   ≥3 of them), they take that genre's class. Sixteen genre paths are defined in `CLASSES`
+   (e.g. LitRPG → **Delver**, Grimdark → **Revenant**, Horror → **Sleepless**, Romance →
+   **Devoted**, Cyberpunk → **Netrunner**, Space Opera → **Starborn**…). Add one by giving a
+   `CLASSES` entry a `{genre:'…'}` field — it auto-maps.
+3. **Generalist path** — eclectic readers with no dominant genre fall to a behavioural
+   archetype scored on the axes: **Wanderer** (wide range), **Devourer** (high volume),
+   **Ascetic** (slow/savouring), **Polymath** (balanced).
+
+Because the path is recomputed from the live shelf, it **shifts** as reading habits change
+(e.g. a Delver who binges horror becomes a Sleepless), firing a quiet "Your path has changed"
+System note. Thresholds live in `CONFIG` (`GENRE_DOMINANCE_*`, `LOREMASTER_*`).
+
 ### Titles vs. Achievements
 - **Titles** are *identity* badges earned for behavioural patterns (e.g. The Unflinching,
   Loremaster). They show on the sheet and the shareable card.
